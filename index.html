@@ -127,7 +127,8 @@
 
         let pushupState = 0; // 0 = ВЕРХ, 1 = ВНИЗ
         let lastStateChangeTime = 0;
-        let startShoulderY = 0; // Для отслеживания движения корпуса по вертикали
+        let shoulderYTop = 0;
+        let shoulderYBottom = 0;
 
         const bosses = [
             { name: "Сквернословный Орк", emoji: "👹", hp: 100 },
@@ -148,8 +149,8 @@
             pose.setOptions({
                 modelComplexity: 1,
                 smoothLandmarks: true,
-                minDetectionConfidence: 0.6,
-                minTrackingConfidence: 0.6
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
             });
 
             pose.onResults(onPoseResults);
@@ -208,7 +209,7 @@
                     } else {
                         clearInterval(prepInterval);
                         isReadyToFight = true;
-                        statusMsg.innerText = "🔥 Лягте в упор лёжа для боя!";
+                        statusMsg.innerText = "🔥 Лягте в упор лёжа и отжимайтесь!";
                         document.getElementById("poseStateText").innerText = "ВЕРХ";
                     }
                 }, 1000);
@@ -237,7 +238,7 @@
                 const rightWrist = landmarks[16];
 
                 const isVisible = leftShoulder && rightShoulder && leftWrist && rightWrist &&
-                                  leftShoulder.visibility > 0.5 && rightShoulder.visibility > 0.5;
+                                  leftShoulder.visibility > 0.4 && rightShoulder.visibility > 0.4;
 
                 if (isVisible) {
                     const shoulderY = (leftShoulder.y + rightShoulder.y) / 2;
@@ -281,17 +282,16 @@
         function processPushupState(angle, shoulderY) {
             const now = Date.now();
             const stateText = document.getElementById("poseStateText");
-            const cooldown = 600;
+            const cooldown = 400;
 
-            // Фиксация верхней позиции
-            if (angle > 145) {
+            // Верхнее положение (руки выпрямлены)
+            if (angle > 140) {
                 if (pushupState === 1 && (now - lastStateChangeTime > cooldown)) {
-                    // Проверка анти-чита: опускались ли плечи вниз во время этого отжимания?
-                    // В камере смартфона снизу вверх, когда опускаешься, плечи меняют позицию. 
-                    // Проверяем, было ли реальное движение по вертикали.
-                    let movedEnough = startShoulderY === 0 || Math.abs(shoulderY - startShoulderY) > 0.03;
-
-                    if (movedEnough) {
+                    // Проверка амплитуды: плечи должны были реально сместиться вниз-вверх в кадре
+                    let verticalAmplitude = shoulderYBottom - shoulderYTop;
+                    
+                    // Если амплитуда достаточна (настоящее отжимание, а не взмахи сидя)
+                    if (verticalAmplitude > 0.04) {
                         pushupState = 0;
                         lastStateChangeTime = now;
                         triggerHit(15, "ОТЖИМАНИЕ! 🔥");
@@ -301,13 +301,14 @@
                     }
                 }
                 pushupState = 0;
+                shoulderYTop = shoulderY;
                 stateText.innerText = "ВЕРХ";
                 stateText.className = "text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded font-mono border border-emerald-800";
             } 
-            // Фиксация нижней позиции
-            else if (angle < 100) {
+            // Нижнее положение (руки согнуты)
+            else if (angle < 95) {
                 if (pushupState === 0) {
-                    startShoulderY = shoulderY; // Запоминаем высоту плеч в начале опускания
+                    shoulderYBottom = shoulderY; // Запоминаем позицию внизу
                 }
                 pushupState = 1;
                 stateText.innerText = "ВНИЗ";
