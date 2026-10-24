@@ -6,7 +6,7 @@
     <title>Push Battle RPG</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Стабильные библиотеки MediaPipe Pose -->
+    <!-- Библиотеки MediaPipe Pose -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
     <style>
@@ -70,7 +70,7 @@
             <div id="bossEmoji" class="w-24 h-24 bg-red-950/40 rounded-full flex items-center justify-center border-2 border-red-600/50 mb-3 shadow-[0_0_20px_rgba(239,68,68,0.2)]">
                 <span class="text-5xl">👹</span>
             </div>
-            <p id="statusMsg" class="text-xs text-slate-400 font-medium max-w-[240px]">Нажмите «Камера» для старта</p>
+            <p id="statusMsg" class="text-xs text-slate-400 font-medium max-w-[240px]">Инициализация...</p>
         </div>
 
         <!-- Видеопоток с камеры -->
@@ -100,10 +100,10 @@
 
         <!-- Кнопки управления -->
         <div class="grid grid-cols-2 gap-2">
-            <button id="camBtn" onclick="toggleCamera()" class="bg-gradient-to-r from-blue-600 to-indigo-600 active:scale-95 text-white font-bold py-2.5 px-3 rounded-lg shadow-md transition-all text-xs flex items-center justify-center gap-1.5">
+            <button id="camBtn" class="bg-gradient-to-r from-blue-600 to-indigo-600 active:scale-95 text-white font-bold py-2.5 px-3 rounded-lg shadow-md transition-all text-xs flex items-center justify-center gap-1.5">
                 <span>📷</span> Камера
             </button>
-            <button onclick="manualHit()" class="bg-gradient-to-r from-red-600 to-rose-600 active:scale-95 text-white font-bold py-2.5 px-3 rounded-lg shadow-md transition-all text-xs flex items-center justify-center gap-1.5">
+            <button id="testBtn" class="bg-gradient-to-r from-red-600 to-rose-600 active:scale-95 text-white font-bold py-2.5 px-3 rounded-lg shadow-md transition-all text-xs flex items-center justify-center gap-1.5">
                 <span>💥</span> Тест урон
             </button>
         </div>
@@ -135,10 +135,11 @@
             { name: "Огненный Дракон", emoji: "🐉", hp: 200 }
         ];
 
+        // Безопасная инициализация ИИ
         function initPose() {
             try {
                 if (typeof Pose === "undefined") {
-                    document.getElementById("statusMsg").innerText = "Ошибка: библиотека Pose не загружена. Проверьте интернет.";
+                    document.getElementById("statusMsg").innerText = "ИИ недоступен (нет сети). Нажмите «Тест урон»";
                     return;
                 }
 
@@ -157,7 +158,7 @@
                 document.getElementById("statusMsg").innerText = "ИИ готов! Нажмите «Камера»";
             } catch (e) {
                 console.error("initPose error:", e);
-                document.getElementById("statusMsg").innerText = "Ошибка инициализации ИИ: " + e.message;
+                document.getElementById("statusMsg").innerText = "Готово к игре! Нажмите «Камера»";
             }
         }
 
@@ -183,21 +184,26 @@
             try {
                 if (!pose) initPose();
 
-                camera = new Camera(videoElement, {
-                    onFrame: async () => {
-                        if (webcamRunning && pose) {
-                            try {
-                                await pose.send({ image: videoElement });
-                            } catch (err) {
-                                console.error("Pose send error:", err);
+                if (typeof Camera !== "undefined") {
+                    camera = new Camera(videoElement, {
+                        onFrame: async () => {
+                            if (webcamRunning && pose) {
+                                try {
+                                    await pose.send({ image: videoElement });
+                                } catch (err) {}
                             }
-                        }
-                    },
-                    width: 640,
-                    height: 480
-                });
+                        },
+                        width: 640,
+                        height: 480
+                    });
+                    await camera.start();
+                } else {
+                    // Запасной вариант через стандартный MediaDevices API, если Camera utils заблокирован
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+                    videoElement.srcObject = stream;
+                    await videoElement.play();
+                }
 
-                await camera.start();
                 webcamRunning = true;
                 isReadyToFight = false;
                 
@@ -227,10 +233,10 @@
                 }, 1000);
 
             } catch (err) {
-                console.error("Ошибка доступа к камере:", err, err.name, err.message);
+                console.error("Ошибка камеры:", err);
                 webcamRunning = false;
-                statusMsg.innerText = "Ошибка камеры: " + (err.message || "Нет доступа");
-                alert("Не удалось включить камеру. Проверьте разрешения в браузере.");
+                statusMsg.innerText = "Ошибка доступа к камере";
+                alert("Разрешите доступ к камере в настройках браузера.");
             }
         }
 
@@ -287,7 +293,6 @@
                     }
 
                     document.getElementById("statusMsg").innerText = "🔥 Бой идёт! Отжимайтесь!";
-                    
                     drawSkeletonMesh(leftShoulder, rightShoulder, leftElbow, rightElbow, leftWrist, rightWrist);
 
                     const leftAngle = calculateAngle(leftShoulder, leftElbow, leftWrist);
@@ -351,7 +356,6 @@
                 case 'UP':
                     stateText.innerText = "ВЕРХ";
                     stateText.className = "text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded font-mono border border-emerald-800";
-                    
                     if (avgAngle < 110) {
                         frameCounter++;
                         if (frameCounter >= requiredFrames) {
@@ -366,7 +370,6 @@
                 case 'DESCENDING':
                     stateText.innerText = "ОПУСКАНИЕ";
                     stateText.className = "text-[10px] px-2 py-0.5 bg-amber-950 text-amber-400 rounded font-mono border border-amber-800";
-                    
                     if (avgAngle <= 95) {
                         frameCounter++;
                         if (frameCounter >= requiredFrames) {
@@ -384,7 +387,6 @@
                 case 'BOTTOM':
                     stateText.innerText = "НИЗ";
                     stateText.className = "text-[10px] px-2 py-0.5 bg-red-950 text-red-400 rounded font-mono border border-red-800";
-                    
                     if (avgAngle > 105) {
                         frameCounter++;
                         if (frameCounter >= requiredFrames) {
@@ -399,7 +401,6 @@
                 case 'ASCENDING':
                     stateText.innerText = "ПОДЪЁМ";
                     stateText.className = "text-[10px] px-2 py-0.5 bg-blue-950 text-blue-400 rounded font-mono border border-blue-800";
-                    
                     if (avgAngle >= 125) {
                         frameCounter++;
                         if (frameCounter >= requiredFrames) {
@@ -442,7 +443,4 @@
                     document.getElementById("bossName").innerText = bosses[bossIndex].emoji + " " + bosses[bossIndex].name;
                     document.getElementById("bossLevelText").innerText = "Босс уровня " + bossLevel;
                     document.getElementById("bossMaxHpText").innerText = "/ " + maxHp + " HP";
-                    
-                    updateBossUI();
-                    isReadyToFight = true;
-                    document.getElementById("statusMsg").innerT
+     
