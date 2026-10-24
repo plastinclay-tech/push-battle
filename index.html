@@ -125,8 +125,9 @@
         let canvasElement = document.getElementById("outputCanvas");
         let canvasCtx = canvasElement.getContext("2d");
 
-        let pushupState = 0; 
+        let pushupState = 0; // 0 = ВЕРХ, 1 = ВНИЗ
         let lastStateChangeTime = 0;
+        let startShoulderY = 0; // Для отслеживания движения корпуса по вертикали
 
         const bosses = [
             { name: "Сквернословный Орк", emoji: "👹", hp: 100 },
@@ -207,8 +208,8 @@
                     } else {
                         clearInterval(prepInterval);
                         isReadyToFight = true;
-                        statusMsg.innerText = "🔥 Примите упор лёжа для боя!";
-                        document.getElementById("poseStateText").innerText = "ПОИСК";
+                        statusMsg.innerText = "🔥 Лягте в упор лёжа для боя!";
+                        document.getElementById("poseStateText").innerText = "ВЕРХ";
                     }
                 }, 1000);
 
@@ -232,49 +233,24 @@
                 
                 const leftShoulder = landmarks[11];
                 const rightShoulder = landmarks[12];
-                const leftHip = landmarks[23];
-                const rightHip = landmarks[24];
                 const leftWrist = landmarks[15];
                 const rightWrist = landmarks[16];
 
-                const isVisible = leftShoulder && rightShoulder && leftHip && rightHip && leftWrist && rightWrist &&
+                const isVisible = leftShoulder && rightShoulder && leftWrist && rightWrist &&
                                   leftShoulder.visibility > 0.5 && rightShoulder.visibility > 0.5;
 
                 if (isVisible) {
-                    // АНТИ-ЧИТ: Проверка положения тела.
-                    // Если пользователь сидит вертикально, разница по вертикали (y) между плечами и бедрами большая.
-                    // В упоре лёжа тело вытянуто горизонтально/наискосок, либо плечи находятся ниже/на уровне бедер относительно камеры на полу.
-                    // Проверим наклон торса: угол линии плечи-бедра к горизонтали.
-                    const shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
-                    const hipMidY = (leftHip.y + rightHip.y) / 2;
-                    const shoulderMidX = (leftShoulder.x + rightShoulder.x) / 2;
-                    const hipMidX = (leftHip.x + rightHip.x) / 2;
+                    const shoulderY = (leftShoulder.y + rightShoulder.y) / 2;
+                    const leftAngle = calculateAngle(leftShoulder, landmarks[13], leftWrist);
+                    const rightAngle = calculateAngle(rightShoulder, landmarks[14], rightWrist);
+                    const avgAngle = (leftAngle + rightAngle) / 2;
 
-                    let torsoAngle = Math.abs(Math.atan2(hipMidY - shoulderMidY, hipMidX - shoulderMidX) * 180 / Math.PI);
-                    
-                    // Если человек сидит прямо, torsoAngle близок к 90°. В упор лежа торс ближе к горизонтали (< 60°).
-                    // Также проверяем, что плечи и кисти видны.
-                    const isHorizontalOrPlank = torsoAngle < 65; // фильтр вертикального положения (сидя/стоя)
+                    drawSkeletonLine(leftShoulder, landmarks[13]);
+                    drawSkeletonLine(landmarks[13], leftWrist);
+                    drawSkeletonLine(rightShoulder, landmarks[14]);
+                    drawSkeletonLine(landmarks[14], rightWrist);
 
-                    if (isHorizontalOrPlank) {
-                        document.getElementById("statusMsg.innerText") // можно обновить статус
-                        const leftAngle = calculateAngle(leftShoulder, landmarks[13], leftWrist);
-                        const rightAngle = calculateAngle(rightShoulder, landmarks[14], rightWrist);
-                        const avgAngle = (leftAngle + rightAngle) / 2;
-
-                        drawSkeletonLine(leftShoulder, landmarks[13]);
-                        drawSkeletonLine(landmarks[13], leftWrist);
-                        drawSkeletonLine(rightShoulder, landmarks[14]);
-                        drawSkeletonLine(landmarks[14], rightWrist);
-
-                        document.getElementById("statusMsg").innerText = "🔥 Бой идет! Отжимайтесь!";
-                        processPushupState(avgAngle);
-                    } else {
-                        // Пользователь сидит или стоит
-                        document.getElementById("statusMsg").innerText = "⚠️ Примите упор лёжа (лягте в планках)!";
-                        document.getElementById("poseStateText").innerText = "СТОИТ/СИДИТ";
-                        pushupState = 0;
-                    }
+                    processPushupState(avgAngle, shoulderY);
                 } else {
                     document.getElementById("poseStateText").innerText = "РУКИ В КАДРЕ?";
                 }
@@ -302,22 +278,37 @@
             canvasCtx.stroke();
         }
 
-        function processPushupState(angle) {
+        function processPushupState(angle, shoulderY) {
             const now = Date.now();
             const stateText = document.getElementById("poseStateText");
             const cooldown = 600;
 
+            // Фиксация верхней позиции
             if (angle > 145) {
                 if (pushupState === 1 && (now - lastStateChangeTime > cooldown)) {
-                    pushupState = 0;
-                    lastStateChangeTime = now;
-                    triggerHit(15, "ОТЖИМАНИЕ! 🔥");
-                } else {
-                    pushupState = 0;
+                    // Проверка анти-чита: опускались ли плечи вниз во время этого отжимания?
+                    // В камере смартфона снизу вверх, когда опускаешься, плечи меняют позицию. 
+                    // Проверяем, было ли реальное движение по вертикали.
+                    let movedEnough = startShoulderY === 0 || Math.abs(shoulderY - startShoulderY) > 0.03;
+
+                    if (movedEnough) {
+                        pushupState = 0;
+                        lastStateChangeTime = now;
+                        triggerHit(15, "ОТЖИМАНИЕ! 🔥");
+                        stateText.innerText = "ВЕРХ";
+                        stateText.className = "text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded font-mono border border-emerald-800";
+                        return;
+                    }
                 }
+                pushupState = 0;
                 stateText.innerText = "ВЕРХ";
                 stateText.className = "text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded font-mono border border-emerald-800";
-            } else if (angle < 100) {
+            } 
+            // Фиксация нижней позиции
+            else if (angle < 100) {
+                if (pushupState === 0) {
+                    startShoulderY = shoulderY; // Запоминаем высоту плеч в начале опускания
+                }
                 pushupState = 1;
                 stateText.innerText = "ВНИЗ";
                 stateText.className = "text-[10px] px-2 py-0.5 bg-red-950 text-red-400 rounded font-mono border border-red-800";
