@@ -206,9 +206,10 @@
                         countdown--;
                     } else {
                         clearInterval(prepInterval);
+                        isReadyTofight = true;
                         isReadyToFight = true;
-                        statusMsg.innerText = "🔥 Лягте в упор лёжа (покажите ноги)!";
-                        document.getElementById("poseStateText").innerText = "ПОИСК";
+                        statusMsg.innerText = "🔥 Примите упор лёжа!";
+                        document.getElementById("poseStateText").innerText = "ВЕРХ";
                     }
                 }, 1000);
 
@@ -238,20 +239,46 @@
                 const rightWrist = landmarks[16];
                 const leftHip = landmarks[23];
                 const rightHip = landmarks[24];
-                const leftKnee = landmarks[25];
-                const rightKnee = landmarks[26];
 
-                // ГЛАВНОЕ ПРАВИЛО: Требуем видимость не только рук, но и ОБЯЗАТЕЛЬНО БЁДЕР И НОГ!
-                const isUpperVisible = leftShoulder && rightShoulder && leftElbow && rightElbow && leftWrist && rightWrist &&
-                                      leftShoulder.visibility > 0.3 && rightShoulder.visibility > 0.3;
-                
-                const isLegsVisible = leftHip && rightHip && leftKnee && rightKnee &&
-                                      leftHip.visibility > 0.25 && rightHip.visibility > 0.25;
+                const isVisible = leftShoulder && rightShoulder && leftElbow && rightElbow && leftWrist && rightWrist &&
+                                  leftShoulder.visibility > 0.3 && rightShoulder.visibility > 0.3;
 
-                if (isUpperVisible && isLegsVisible) {
+                if (isVisible) {
+                    // ЖЕСТКИЙ АНТИ-ЧИТ ПО УГЛУ ТОРСА (Плечи -> Бёдра)
+                    // Если бёдра видны, проверяем угол наклона тела относительно камеры на полу.
+                    if (leftHip && rightHip && leftHip.visibility > 0.2 && rightHip.visibility > 0.2) {
+                        const shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
+                        const hipMidY = (leftHip.y + rightHip.y) / 2;
+                        
+                        const shoulderMidX = (leftShoulder.x + rightShoulder.x) / 2;
+                        const hipMidX = (leftHip.x + rightHip.x) / 2;
+
+                        // Считаем угол тела: если человек сидит, вертикальная разница (Y) между плечами и тазом большая.
+                        // В упоре лёжа тело вытянуто горизонтально вдоль экрана.
+                        const deltaY = Math.abs(hipMidY - shoulderMidY);
+                        const deltaX = Math.abs(hipMidX - shoulderMidX);
+                        const bodyAngle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
+
+                        // Если угол больше 42 градусов — человек сидит или стоит вертикально!
+                        if (bodyAngle > 42) {
+                            document.getElementById("statusMsg").innerText = "⚠️ СЯДЬТЕ / ЛЯГТЕ В УПОР ЛЁЖА!";
+                            document.getElementById("poseStateText").innerText = "СИДИТ/СТОИТ";
+                            pushupState = 0;
+                            canvasCtx.restore();
+                            return;
+                        }
+                    } else {
+                        // Если бёдер совсем не видно (слишком близко лицо/плечи) — блокируем
+                        document.getElementById("statusMsg").innerText = "⚠️ ОТОЙДИТЕ НАЗАД (ВИДИМОСТЬ ТЕЛА)";
+                        document.getElementById("poseStateText").innerText = "НЕТ ТЕЛА";
+                        pushupState = 0;
+                        canvasCtx.restore();
+                        return;
+                    }
+
                     document.getElementById("statusMsg").innerText = "🔥 Бой идёт! Отжимайтесь!";
-
-                    // Рисуем полный каркас тела (плечи, руки, торс, бёдра, ноги)
+                    
+                    // Рисуем каркас
                     drawFullBodySkeleton(landmarks);
 
                     const leftAngle = calculateAngle(leftShoulder, leftElbow, leftWrist);
@@ -260,9 +287,8 @@
 
                     processPushupState(avgAngle);
                 } else {
-                    document.getElementById("statusMsg").innerText = "⚠️ ПОКАЖИТЕ НОГИ И ТЕЛО В КАДРЕ!";
-                    document.getElementById("poseStateText").innerText = "НЕТ НОГ";
-                    pushupState = 0;
+                    document.getElementById("statusMsg").innerText = "⚠️ Отойдите назад, чтобы руки были в кадре";
+                    document.getElementById("poseStateText").innerText = "В КАДРЕ?";
                 }
             } else if (isReadyToFight) {
                 document.getElementById("poseStateText").innerText = "НЕТ ТЕЛА";
@@ -278,20 +304,14 @@
             return angle;
         }
 
-        // Отрисовка полноценного скелета тела (как в референсе)
         function drawFullBodySkeleton(lm) {
-            const color = pushupState === 1 ? "#ef4444" : "#a855f7"; // Красный внизу, фиолетовый вверху
+            const color = pushupState === 1 ? "#ef4444" : "#a855f7";
 
             const connections = [
-                // Руки и плечи
                 [lm[11], lm[12]], // Плечи
                 [lm[11], lm[13]], [lm[13], lm[15]], // Левая рука
                 [lm[12], lm[14]], [lm[14], lm[16]], // Правая рука
-                // Торс
-                [lm[11], lm[23]], [lm[12], lm[24]], [lm[23], lm[24]],
-                // Ноги
-                [lm[23], lm[25]], [lm[25], lm[27]], // Левая нога
-                [lm[24], lm[26]], [lm[26], lm[28]]  // Правая нога
+                [lm[11], lm[23]], [lm[12], lm[24]], [lm[23], lm[24]] // Торс
             ];
 
             canvasCtx.lineWidth = 4;
@@ -306,8 +326,7 @@
                 }
             });
 
-            // Узлы суставов (желтые точки)
-            [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28].forEach(idx => {
+            [11, 12, 13, 14, 15, 16, 23, 24].forEach(idx => {
                 let p = lm[idx];
                 if (p && p.visibility > 0.2) {
                     canvasCtx.beginPath();
