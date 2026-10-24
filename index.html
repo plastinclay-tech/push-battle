@@ -127,6 +127,7 @@
 
         let pushupState = 0; // 0 = ВЕРХ, 1 = ВНИЗ
         let lastStateChangeTime = 0;
+        let smoothedAngle = 180; // Переменная для сглаживания углов (защита от тряски)
 
         const bosses = [
             { name: "Сквернословный Орк", emoji: "👹", hp: 100 },
@@ -144,7 +145,6 @@
                 locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
             });
 
-            // Возвращаем стабильные рабочие параметры
             pose.setOptions({
                 modelComplexity: 1,
                 smoothLandmarks: true,
@@ -210,6 +210,7 @@
                         isReadyToFight = true;
                         statusMsg.innerText = "🔥 Бой идёт! Отжимайтесь!";
                         document.getElementById("poseStateText").innerText = "ВЕРХ";
+                        smoothedAngle = 180;
                     }
                 }, 1000);
 
@@ -235,21 +236,29 @@
                 const le = lm[13], re = lm[14]; // Локти
                 const lw = lm[15], rw = lm[16]; // Запястья
 
-                // Мягкий порог видимости (`0.2`), чтобы сетка стабильно держалась и не пропадала
                 const isVisible = ls && rs && le && re && lw && rw &&
                                   ls.visibility > 0.2 && rs.visibility > 0.2;
 
                 if (isVisible) {
                     document.getElementById("statusMsg").innerText = "🔥 Отжимайтесь!";
 
-                    // Отрисовка стабильного полного скелета
                     drawReferenceSkeleton(lm);
 
                     const leftAngle = calculateAngle(ls, le, lw);
                     const rightAngle = calculateAngle(rs, re, rw);
-                    const avgAngle = (leftAngle + rightAngle) / 2;
+                    const rawAngle = (leftAngle + rightAngle) / 2;
 
-                    processPushupState(avgAngle);
+                    // ЗАЩИТА ОТ ТРЯСКИ ТЕЛЕФОНА (Фильтр мгновенных скачков)
+                    // Если угол изменился больше чем на 35 градусов за 1 кадр — это смаз или тряска камеры, игнорируем кач
+                    if (Math.abs(rawAngle - smoothedAngle) > 35 && smoothedAngle !== 180) {
+                        canvasCtx.restore();
+                        return;
+                    }
+
+                    // Плавное сглаживание угла
+                    smoothedAngle = smoothedAngle * 0.5 + rawAngle * 0.5;
+
+                    processPushupState(smoothedAngle);
                 } else {
                     document.getElementById("statusMsg").innerText = "⚠️ Держите руки и плечи в кадре";
                     document.getElementById("poseStateText").innerText = "ПОИСК";
