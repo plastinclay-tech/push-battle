@@ -6,8 +6,9 @@
     <title>Push Battle RPG</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- MediaPipe Tasks Vision -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.js" crossorigin="anonymous"></script>
+    <!-- Стабильные библиотеки MediaPipe Pose -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
     <style>
         body {
             background-color: #0f172a;
@@ -69,7 +70,7 @@
             <div class="w-24 h-24 bg-red-950/40 rounded-full flex items-center justify-center border-2 border-red-600/50 mb-3 shadow-[0_0_20px_rgba(239,68,68,0.2)]">
                 <span class="text-5xl">👹</span>
             </div>
-            <p id="statusMsg" class="text-xs text-slate-400 font-medium max-w-[240px]">Загрузка модуля ИИ...</p>
+            <p id="statusMsg" class="text-xs text-slate-400 font-medium max-w-[240px]">Нажмите «Камера» для старта</p>
         </div>
 
         <!-- Видеопоток с камеры -->
@@ -114,39 +115,37 @@
         let currentHp = 100;
         let pushups = 0;
         
-        let poseLandmarker = undefined;
+        let pose = null;
+        let camera = null;
         let webcamRunning = false;
+        
         let videoElement = document.getElementById("webcam");
         let canvasElement = document.getElementById("outputCanvas");
         let canvasCtx = canvasElement.getContext("2d");
 
-        let pushupState = 0; 
+        let pushupState = 0; // 0 = ВЕРХ, 1 = ВНИЗ
         let lastStateChangeTime = 0;
 
-        async function initPoseLandmarker() {
-            const statusMsg = document.getElementById("statusMsg");
-            statusMsg.innerText = "Загрузка ИИ-модуля позы...";
-            
-            try {
-                const vision = await FilesetResolver.forVisionTasks(
-                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
-                );
-                
-                poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
-                    baseOptions: {
-                        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
-                        delegate: "GPU"
-                    },
-                    runningMode: "VIDEO",
-                    numPoses: 1
-                });
-                
-                statusMsg.innerText = "ИИ готов! Нажмите «Камера»";
-                console.log("MediaPipe PoseLandmarker успешно инициализирован");
-            } catch (error) {
-                console.error("Ошибка загрузки MediaPipe:", error);
-                statusMsg.innerText = "Ошибка загрузки ИИ. Проверьте интернет или VPN.";
+        // Инициализация библиотеки Pose
+        function initPose() {
+            if (typeof Pose === "undefined") {
+                document.getElementById("statusMsg").innerText = "Ошибка загрузки библиотеки. Проверьте сеть/VPN.";
+                return;
             }
+
+            pose = new Pose({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+            });
+
+            pose.setOptions({
+                modelComplexity: 1,
+                smoothLandmarks: true,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+
+            pose.onResults(onPoseResults);
+            document.getElementById("statusMsg").innerText = "ИИ готов! Нажмите «Камера»";
         }
 
         async function toggleCamera() {
@@ -155,11 +154,7 @@
 
             if (webcamRunning) {
                 webcamRunning = false;
-                let stream = videoElement.srcObject;
-                if (stream) {
-                    stream.getTracks().forEach(track => track.stop());
-                }
-                videoElement.srcObject = null;
+                if (camera) { camera.stop(); }
                 videoElement.classList.add("opacity-0");
                 bossAvatar.classList.remove("opacity-0");
                 btn.innerHTML = "<span>📷</span> Камера";
@@ -167,80 +162,70 @@
                 return;
             }
 
-            if (!poseLandmarker) {
-                alert("ИИ-модуль еще загружается. Подождите пару секунд.");
-                return;
-            }
-
             try {
-                const constraints = {
-                    video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }
-                };
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                videoElement.srcObject = stream;
-                videoElement.addEventListener("loadeddata", predictWebcam);
-                
+                if (!pose) initPose();
+
+                camera = new Camera(videoElement, {
+                    onFrame: async () => {
+                        if (webcamRunning && pose) {
+                            await pose.send({ image: videoElement });
+                        }
+                    },
+                    width: 640,
+                    height: 480
+                });
+
+                await camera.start();
                 webcamRunning = true;
                 videoElement.classList.remove("opacity-0");
                 bossAvatar.classList.add("opacity-0");
                 btn.innerHTML = "<span>⏹️</span> Стоп";
             } catch (err) {
                 console.error("Ошибка доступа к камере:", err);
-                alert("Не удалось получить доступ к камере. Разрешите её использование в браузере.");
+                alert("Не удалось включить камеру. Разрешите доступ к камере в браузере.");
             }
         }
 
-        let lastVideoTime = -1;
-        async function predictWebcam() {
+        function onPoseResults(results) {
             if (!webcamRunning) return;
 
-            if (videoElement.videoWidth > 0 && canvasElement.width !== videoElement.videoWidth) {
-                canvasElement.width = videoElement.videoWidth;
-                canvasElement.height = videoElement.videoHeight;
-            }
+            canvasElement.width = videoElement.videoWidth || 640;
+            canvasElement.height = videoElement.videoHeight || 480;
 
-            let startTimeMs = performance.now();
-            if (videoElement.currentTime !== lastVideoTime) {
-                lastVideoTime = videoElement.currentTime;
-                const results = poseLandmarker.detectForVideo(videoElement, startTimeMs);
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+            if (results.poseLandmarks) {
+                const landmarks = results.poseLandmarks;
                 
-                canvasCtx.save();
-                canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+                // Рассчитываем углы в локтях
+                const leftAngle = calculateAngle(landmarks[11], landmarks[13], landmarks[15]);
+                const rightAngle = calculateAngle(landmarks[12], landmarks[14], landmarks[16]);
+                const avgAngle = (leftAngle + rightAngle) / 2;
 
-                if (results.landmarks && results.landmarks.length > 0) {
-                    const landmarks = results.landmarks[0];
-                    
-                    const leftAngle = calculateAngle(landmarks[11], landmarks[13], landmarks[15]);
-                    const rightAngle = calculateAngle(landmarks[12], landmarks[14], landmarks[16]);
-                    const avgAngle = (leftAngle + rightAngle) / 2;
+                // Отрисовка скелета рук
+                drawSkeletonLine(landmarks[11], landmarks[13]);
+                drawSkeletonLine(landmarks[13], landmarks[15]);
+                drawSkeletonLine(landmarks[12], landmarks[14]);
+                drawSkeletonLine(landmarks[14], landmarks[16]);
 
-                    drawSkeletonLine(landmarks[11], landmarks[13]);
-                    drawSkeletonLine(landmarks[13], landmarks[15]);
-                    drawSkeletonLine(landmarks[12], landmarks[14]);
-                    drawSkeletonLine(landmarks[14], landmarks[16]);
-
-                    processPushupState(avgAngle);
-                } else {
-                    document.getElementById("poseStateText").innerText = "НЕТ ТЕЛА";
-                }
-                canvasCtx.restore();
+                processPushupState(avgAngle);
+            } else {
+                document.getElementById("poseStateText").innerText = "НЕТ ТЕЛА";
             }
-
-            if (webcamRunning) {
-                window.requestAnimationFrame(predictWebcam);
-            }
+            canvasCtx.restore();
         }
 
         function calculateAngle(a, b, c) {
+            if (!a || !b || !c) return 180;
             let radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
             let angle = Math.abs(radians * 180.0 / Math.PI);
-            if (angle > 180.0) {
-                angle = 360.0 - angle;
-            }
+            if (angle > 180.0) angle = 360.0 - angle;
             return angle;
         }
 
         function drawSkeletonLine(p1, p2) {
+            if (!p1 || !p2) return;
             canvasCtx.beginPath();
             canvasCtx.moveTo(p1.x * canvasElement.width, p1.y * canvasElement.height);
             canvasCtx.lineTo(p2.x * canvasElement.width, p2.y * canvasElement.height);
@@ -254,7 +239,7 @@
             const stateText = document.getElementById("poseStateText");
             const cooldown = 600;
 
-            if (angle > 150) {
+            if (angle > 145) {
                 if (pushupState === 1 && (now - lastStateChangeTime > cooldown)) {
                     pushupState = 0;
                     lastStateChangeTime = now;
@@ -264,7 +249,7 @@
                 }
                 stateText.innerText = "ВЕРХ";
                 stateText.className = "text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded font-mono border border-emerald-800";
-            } else if (angle < 95) {
+            } else if (angle < 100) {
                 pushupState = 1;
                 stateText.innerText = "ВНИЗ";
                 stateText.className = "text-[10px] px-2 py-0.5 bg-red-950 text-red-400 rounded font-mono border border-red-800";
@@ -324,7 +309,7 @@
         }
 
         window.addEventListener("DOMContentLoaded", () => {
-            initPoseLandmarker();
+            initPose();
         });
     </script>
 </body>
