@@ -90,9 +90,9 @@
                 </div>
             </div>
 
-            <!-- Центр: Детальный Canvas 2D персонаж -->
-            <div class="relative flex items-center justify-center my-auto w-72 h-72 cursor-pointer" id="click-target">
-                <canvas id="gameCanvas" width="280" height="280" class="drop-shadow-2xl"></canvas>
+            <!-- Центр: Детальный Canvas 2D персонаж (исправлен flex-shrink-0) -->
+            <div class="relative flex items-center justify-center my-auto w-64 h-64 cursor-pointer flex-shrink-0" id="click-target">
+                <canvas id="gameCanvas" width="280" height="280" class="drop-shadow-2xl w-full h-full"></canvas>
             </div>
 
             <div class="text-center mb-2">
@@ -192,7 +192,6 @@
             soundEnabled: true
         };
 
-        // 4 персонажа по вашим референсам
         const NOOB_FORMS = [
             { id: 0, name: "1. Обычный нуб", cost: 0, type: "normal", color: "#facc15" },
             { id: 1, name: "2. Нуб-Горилла", cost: 5000, type: "gorilla", color: "#9333ea" },
@@ -217,7 +216,6 @@
             { id: 'coins_1m', name: 'Миллионер', desc: '1,000,000 монет', check: () => game.totalCoinsEarned >= 1000000, reward: 100000 }
         ];
 
-        // Web Audio API звуки
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playSound(type) {
             if (!game.soundEnabled) return;
@@ -248,7 +246,6 @@
             } catch(e) {}
         }
 
-        // Canvas 2D Рендеринг детализированных персонажей
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         let animTime = 0;
@@ -276,7 +273,6 @@
             return idx;
         }
 
-        // Функция отрисовки персонажей с высокой детализацией
         function drawCharacter() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             animTime += 0.06;
@@ -291,7 +287,42 @@
             let breath = Math.sin(animTime) * 4;
 
             if (form.type === 'normal') {
-                // 1. Обычный нуб (с высунутым языком и короной)
-                // Туловище (Синяя футболка)
                 ctx.fillStyle = '#2563eb';
-                ctx.fillRect(-3
+                ctx.fillRect(-32, -5 + breath, 64, 60);
+                ctx.strokeStyle = '#1d4ed8'; ctx.lineWidth = 3; ctx.strokeRect(-32, -5 + breath, 64, 60);
+                
+                ctx.fillStyle = '#059669';
+                ctx.fillRect(-28, 55 + breath, 24, 50);
+                ctx.fillRect(4, 55 + breath, 24, 50);
+
+                ctx.fillStyle = '#facc15';
+                ctx.fillRect(-56, 0 + breath, 20, 58);
+                ctx.fillRect(36, 0 + breath, 20, 58);
+
+                ctx.fillStyle = '#facc15';
+                ctx.fillRect(-38, -65 + breath, 76, 62);
+                ctx.strokeStyle = '#ca8a04'; ctx.lineWidth = 3; ctx.strokeRect(-38, -65 + breath, 76, 62);
+
+                ctx.fillStyle = '#fff';
+                ctx.beginPath(); ctx.arc(-16, -38 + breath, 9, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.arc(16, -42 + breath, 9, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = '#000';
+                ctx.beginPath(); ctx.arc(-14, -38 + breath, 4, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(18, -42 + breath, 4, 0, Math.PI*2); ctx.fill();
+
+                ctx.fillStyle = '#7f1d1d';
+                ctx.beginPath(); ctx.arc(2, -22 + breath, 12, 0, Math.PI); ctx.fill();
+                ctx.fillStyle = '#ef4444';
+                ctx.beginPath(); ctx.ellipse(4, -12 + breath, 8, 12, 0.2, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#991b1b'; ctx.lineWidth = 2; ctx.stroke();
+
+                ctx.fillStyle = '#fbbf24';
+                ctx.beginPath();
+                ctx.moveTo(-22, -65 + breath); ctx.lineTo(-28, -88 + breath); ctx.lineTo(-11, -75 + breath);
+                ctx.lineTo(0, -92 + breath); ctx.lineTo(11, -75 + breath); ctx.lineTo(28, -88 + breath);
+                ctx.lineTo(22, -65 + breath); ctx.closePath(); ctx.fill(); ctx.strokeStyle = '#b45309'; ctx.stroke();
+
+            } else if (form.type === 'gorilla') {
+                ctx.fillStyle = '#78350f';
+                ctx.fillRect(-52, -15 + breath, 104, 75);
+                ctx.fillStyle = '#
