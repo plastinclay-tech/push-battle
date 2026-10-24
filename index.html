@@ -1,0 +1,603 @@
+```html
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Push Battle RPG v0.2</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google MediaPipe Tasks Vision CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm/vision_bundle.js" crossorigin="anonymous"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* CSS Стили и Анимации */
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rajdhani:wght@600;700&display=swap');
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: #0b0d17;
+            color: #e2e8f0;
+            user-select: none;
+            touch-action: manipulation;
+            overflow-x: hidden;
+        }
+
+        .pixel-font {
+            font-family: 'Press Start 2P', monospace;
+        }
+
+        /* Анимация сотрясения при ударе */
+        @keyframes shake {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            20% { transform: translate(-8px, 5px) rotate(-2deg); }
+            40% { transform: translate(8px, -5px) rotate(2deg); }
+            60% { transform: translate(-5px, -3px) rotate(-1deg); }
+            80% { transform: translate(5px, 3px) rotate(1deg); }
+            100% { transform: translate(0, 0) rotate(0deg); }
+        }
+
+        .shake-animation {
+            animation: shake 0.35s ease-in-out;
+        }
+
+        /* Анимация вспышки урона */
+        @keyframes damage-flash {
+            0% { filter: brightness(1) drop-shadow(0 0 10px rgba(239, 68, 68, 0.5)); }
+            50% { filter: brightness(2.5) drop-shadow(0 0 30px rgba(239, 68, 68, 0.9)); }
+            100% { filter: brightness(1) drop-shadow(0 0 10px rgba(239, 68, 68, 0.5)); }
+        }
+
+        .damage-flash {
+            animation: damage-flash 0.3s ease-out;
+        }
+
+        /* Вылетающие цифры урона */
+        .damage-number {
+            position: absolute;
+            font-family: 'Press Start 2P', monospace;
+            color: #ef4444;
+            text-shadow: 2px 2px 0px #000, -2px -2px 0px #000, 2px -2px 0px #000, -2px 2px 0px #000;
+            font-size: 1.75rem;
+            pointer-events: none;
+            animation: float-up 0.8s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+            z-index: 50;
+        }
+
+        @keyframes float-up {
+            0% { opacity: 1; transform: translateY(0) scale(0.8); }
+            50% { transform: translateY(-40px) scale(1.3); }
+            100% { opacity: 0; transform: translateY(-80px) scale(1); }
+        }
+
+        /* Зеркальное отображение камеры */
+        .mirror {
+            transform: scaleX(-1);
+        }
+
+        /* Неоновое свечение элементов */
+        .glow-red {
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+        }
+
+        .glow-cyan {
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
+        }
+
+        /* Кастомный Scrollbar для мобильных окон */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between max-w-md mx-auto p-4 border-x border-slate-800 relative bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
+
+    <!-- Всплывающий контейнер для урона -->
+    <div id="damageContainer" class="absolute inset-0 pointer-events-none z-50"></div>
+
+    <!-- Верхняя панель игрока (HUD) -->
+    <header class="bg-slate-900/90 border border-slate-800 rounded-xl p-3 backdrop-blur shadow-lg">
+        <div class="flex justify-between items-center mb-2">
+            <div class="flex items-center space-x-2">
+                <div class="w-8 h-8 rounded-lg bg-indigo-600 border border-indigo-400 flex items-center justify-center font-bold text-xs text-white">
+                    LV1
+                </div>
+                <div>
+                    <h1 class="text-sm font-bold tracking-wider text-slate-200 uppercase">Герой Отжиманий</h1>
+                    <div class="text-[10px] text-cyan-400 font-bold uppercase tracking-wider">Боец PUSH BATTLE</div>
+                </div>
+            </div>
+            
+            <!-- Счётчик отжиманий -->
+            <div class="text-right bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
+                <div class="text-[9px] text-slate-400 uppercase font-semibold">Отжимания</div>
+                <div id="pushupCount" class="text-xl font-extrabold text-amber-400 pixel-font tracking-tighter">0</div>
+            </div>
+        </div>
+
+        <!-- Информация о Боссе и Полоса ХП -->
+        <div class="space-y-1 mt-3">
+            <div class="flex justify-between text-xs font-bold">
+                <span id="bossName" class="text-red-400 flex items-center gap-1">
+                    <i class="fa-solid font-black fa-skull"></i> Тёмный Огр (Этап 1)
+                </span>
+                <span id="bossHpText" class="text-slate-300 font-mono">100 / 100 HP</span>
+            </div>
+            <div class="w-full bg-slate-950 h-4 rounded-full overflow-hidden p-0.5 border border-slate-800 relative">
+                <div id="bossHpBar" class="bg-gradient-to-r from-red-600 via-rose-500 to-amber-500 h-full rounded-full transition-all duration-300 w-full glow-red"></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Основная Игровая Арена (Босс и Камера) -->
+    <main class="my-3 flex-1 flex flex-col gap-3 relative">
+        <!-- Экран Босса -->
+        <div id="bossCard" class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col items-center justify-center relative overflow-hidden min-h-[200px] shadow-inner transition-transform">
+            <!-- Эффект фонового свечения босса -->
+            <div class="absolute inset-0 bg-red-900/10 pointer-events-none"></div>
+
+            <!-- Изображение Босса (Оригинальный SVG Вектор) -->
+            <div id="bossSprite" class="relative z-10 transition-transform duration-200">
+                <svg width="140" height="140" viewBox="0 0 100 100" class="drop-shadow-[0_10px_20px_rgba(220,38,38,0.5)]">
+                    <!-- Рога -->
+                    <path d="M 20 30 Q 5 10 25 5 Q 30 20 35 28 Z" fill="#dc2626" />
+                    <path d="M 80 30 Q 95 10 75 5 Q 70 20 65 28 Z" fill="#dc2626" />
+                    <!-- Голова -->
+                    <circle cx="50" cy="45" r="30" fill="#1e293b" stroke="#dc2626" stroke-width="3"/>
+                    <!-- Глаза -->
+                    <circle cx="40" cy="40" r="5" fill="#facc15" />
+                    <circle cx="60" cy="40" r="5" fill="#facc15" />
+                    <circle cx="41" cy="40" r="2" fill="#000" />
+                    <circle cx="59" cy="40" r="2" fill="#000" />
+                    <!-- Клыки и Рот -->
+                    <path d="M 35 60 Q 50 70 65 60 Q 50 55 35 60 Z" fill="#0f172a" />
+                    <polygon points="38,58 42,58 40,65" fill="#fff" />
+                    <polygon points="58,58 62,58 60,65" fill="#fff" />
+                    <!-- Тело/Плечи -->
+                    <path d="M 15 90 C 20 65, 80 65, 85 90 Z" fill="#0f172a" stroke="#dc2626" stroke-width="2"/>
+                    <!-- Броня/Узоры -->
+                    <path d="M 35 75 L 50 90 L 65 75" fill="none" stroke="#ef4444" stroke-width="2"/>
+                </svg>
+            </div>
+
+            <!-- Статус Босса -->
+            <div id="bossStatusText" class="mt-2 text-xs font-bold text-slate-400 tracking-wide uppercase z-10">
+                Готов к бою
+            </div>
+        </div>
+
+        <!-- Видиопоток Камеры и Оверлей ИИ -->
+        <div class="relative bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden flex-1 min-h-[220px] flex items-center justify-center glow-cyan">
+            <!-- Видео с камеры (скрыто до включения) -->
+            <video id="webcam" class="absolute inset-0 w-full h-full object-cover mirror hidden" autoplay playsinline></video>
+            
+            <!-- Холст для рисования скелета и углов -->
+            <canvas id="outputCanvas" class="absolute inset-0 w-full h-full mirror hidden z-10"></canvas>
+
+            <!-- Заглушка, когда камера выключена -->
+            <div id="cameraPlaceholder" class="flex flex-col items-center justify-center p-6 text-center z-20">
+                <div class="w-16 h-16 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center mb-3 text-cyan-400 text-2xl">
+                    <i class="fa-solid fa-video-slash"></i>
+                </div>
+                <p class="text-sm text-slate-300 font-bold mb-1">Камера выключена</p>
+                <p class="text-xs text-slate-500 max-w-[200px]">Нажмите «Включить камеру», чтобы начать автоматически наносить урон отжиманиями</p>
+            </div>
+
+            <!-- Индикатор состояния отжимания (Вверху / Внизу) -->
+            <div id="poseStateBadge" class="absolute top-3 left-3 z-30 bg-slate-900/90 border border-slate-700 backdrop-blur px-3 py-1 rounded-full text-xs font-bold text-slate-300 hidden">
+                Статус: <span id="poseStateText" class="text-cyan-400">ВЕРХ</span>
+            </div>
+
+            <!-- Индикатор Угла в локтях -->
+            <div id="angleBadge" class="absolute top-3 right-3 z-30 bg-slate-900/90 border border-slate-700 backdrop-blur px-3 py-1 rounded-full text-xs font-mono text-amber-400 hidden">
+                Угол: <span id="angleText">--</span>°
+            </div>
+
+            <!-- Загрузочный оверлей ИИ -->
+            <div id="loadingOverlay" class="absolute inset-0 bg-slate-950/90 z-40 flex flex-col items-center justify-center hidden">
+                <div class="w-10 h-10 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+                <div class="text-xs text-cyan-400 font-bold">Загрузка ИИ MediaPipe...</div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Нижняя панель управления (Кнопки) -->
+    <footer class="space-y-2 bg-slate-900/80 p-3 border border-slate-800 rounded-xl backdrop-blur">
+        <div class="grid grid-cols-2 gap-2">
+            <!-- Кнопка Камеры -->
+            <button id="toggleCamBtn" onclick="toggleCamera()" class="w-full bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-700 text-white font-bold py-3 px-3 rounded-lg text-xs flex items-center justify-center gap-2 transition-all shadow-md">
+                <i class="fa-solid fa-camera"></i> <span id="camBtnText">Включить камеру</span>
+            </button>
+
+            <!-- Кнопка Ручного Тестового Удара -->
+            <button onclick="dealDamage(10)" class="w-full bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 active:scale-95 text-white font-bold py-3 px-3 rounded-lg text-xs flex items-center justify-center gap-2 transition-all shadow-md">
+                <i class="fa-solid fa-hand-fist"></i> Тестовый удар (-10)
+            </button>
+        </div>
+
+        <!-- Кнопка Перезапуска -->
+        <button onclick="resetGame()" class="w-full bg-slate-800 hover:bg-slate-700 active:bg-slate-950 text-slate-300 font-bold py-2 px-3 rounded-lg text-xs flex items-center justify-center gap-2 transition-all border border-slate-700">
+            <i class="fa-solid fa-rotate-right"></i> Перезапуск Босса
+        </button>
+    </footer>
+
+    <!-- Модальное Окно Инструкции/Предупреждений -->
+    <div id="infoModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 max-w-xs w-full text-center space-y-4">
+            <div class="w-12 h-12 bg-amber-500/10 border border-amber-500/30 rounded-full flex items-center justify-center mx-auto text-amber-500 text-xl">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            <h3 id="modalTitle" class="text-base font-bold text-slate-100">Внимание</h3>
+            <p id="modalMessage" class="text-xs text-slate-400 leading-relaxed">
+                Для работы камеры необходим доступ к медиа-устройствам браузера.
+            </p>
+            <button onclick="closeModal()" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-2 rounded-lg text-xs border border-slate-700">
+                Понятно
+            </button>
+        </div>
+    </div>
+
+    <!-- Игровая Логика и Распознавание Движений -->
+    <script>
+        // Игровое состояние
+        let maxHp = 100;
+        let currentHp = 100;
+        let pushups = 0;
+        let stage = 1;
+
+        // Переменные Камеры и MediaPipe Pose
+        let video = document.getElementById('webcam');
+        let canvasElement = document.getElementById('outputCanvas');
+        let canvasCtx = canvasElement.getContext('2d');
+        let poseLandmarker = null;
+        let runningMode = "VIDEO";
+        let isCameraActive = false;
+        let lastVideoTime = -1;
+        let animFrameId = null;
+
+        // Состояния Machine Learning для отжиманий
+        // STATE 0: TOP (Прямые руки > 150deg)
+        // STATE 1: DOWN (Согнутые руки < 90deg)
+        let pushupState = "TOP"; 
+        let lastRepTime = 0;
+        const MIN_REP_INTERVAL = 700; // Кулдаун между отжиманиями в мс (Защита от спама)
+
+        // Инициализация при загрузке страницы
+        window.onload = function() {
+            updateUI();
+        };
+
+        // Логика Урона и Босса
+        function dealDamage(amount) {
+            if (currentHp <= 0) return;
+
+            currentHp = Math.max(0, currentHp - amount);
+            updateUI();
+
+            // Эффекты Удара
+            triggerHitEffects(amount);
+
+            // Проверка Победы над боссом
+            if (currentHp === 0) {
+                setTimeout(() => {
+                    alert(`Победа! Вы повергли босса Этапа ${stage}!`);
+                    stage++;
+                    maxHp = Math.round(maxHp * 1.25);
+                    currentHp = maxHp;
+                    document.getElementById('bossName').innerHTML = `<i class="fa-solid fa-skull"></i> Тёмный Огр (Этап ${stage})`;
+                    updateUI();
+                }, 300);
+            }
+        }
+
+        function triggerHitEffects(damageVal) {
+            // 1. Сотрясение экрана Босса
+            const bossCard = document.getElementById('bossCard');
+            const bossSprite = document.getElementById('bossSprite');
+            
+            bossCard.classList.remove('shake-animation');
+            bossSprite.classList.remove('damage-flash');
+            
+            void bossCard.offsetWidth; // Триггер reflow
+            
+            bossCard.classList.add('shake-animation');
+            bossSprite.classList.add('damage-flash');
+
+            // 2. Вылетающие цифры урона
+            const damageElem = document.createElement('div');
+            damageElem.className = 'damage-number';
+            damageElem.innerText = `-${damageVal}`;
+            
+            // Рандомный сдвиг позиции над боссом
+            const randomX = 40 + Math.random() * 20;
+            const randomY = 40 + Math.random() * 20;
+            damageElem.style.left = `${randomX}%`;
+            damageElem.style.top = `${randomY}%`;
+
+            document.getElementById('damageContainer').appendChild(damageElem);
+
+            setTimeout(() => {
+                damageElem.remove();
+            }, 800);
+        }
+
+        function resetGame() {
+            currentHp = maxHp;
+            pushups = 0;
+            pushupState = "TOP";
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('pushupCount').innerText = pushups;
+            document.getElementById('bossHpText').innerText = `${currentHp} / ${maxHp} HP`;
+            
+            const percentage = Math.max(0, (currentHp / maxHp) * 100);
+            document.getElementById('bossHpBar').style.width = `${percentage}%`;
+
+            const bossStatusText = document.getElementById('bossStatusText');
+            if (currentHp <= 0) {
+                bossStatusText.innerText = "ПОВЕРЖЕН!";
+                bossStatusText.className = "mt-2 text-xs font-bold text-red-500 tracking-wide uppercase z-10";
+            } else {
+                bossStatusText.innerText = `Здоровье: ${Math.round(percentage)}%`;
+                bossStatusText.className = "mt-2 text-xs font-bold text-slate-400 tracking-wide uppercase z-10";
+            }
+        }
+
+        // -------------------------------------------------------------
+        // ИНИЦИАЛИЗА MEDIAPIPE POSE LANDMARKER (БЕСПЛАТНЫЙ ИИ)
+        // -------------------------------------------------------------
+        async function initPoseLandmarker() {
+            if (poseLandmarker) return true;
+
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            loadingOverlay.classList.remove('hidden');
+
+            try {
+                // Загрузка WASM модуля MediaPipe с CDN
+                const vision = await window.FilesetResolver.forVisionTasks(
+                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
+                );
+
+                poseLandmarker = await window.PoseLandmarker.createFromOptions(vision, {
+                    baseOptions: {
+                        modelAssetPath: `https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task`,
+                        delegate: "GPU"
+                    },
+                    runningMode: runningMode,
+                    numPoses: 1
+                });
+
+                loadingOverlay.classList.add('hidden');
+                return true;
+            } catch (error) {
+                console.error("Ошибка загрузки MediaPipe:", error);
+                loadingOverlay.classList.add('hidden');
+                showModal("Ошибка ИИ", "Не удалось загрузить модуль распознавания позы. Проверьте подключение к интернету.");
+                return false;
+            }
+        }
+
+        // Включение / Выключение Камеры
+        async function toggleCamera() {
+            if (isCameraActive) {
+                stopCamera();
+            } else {
+                // Проверка протокола HTTPS для мобильных устройств
+                if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                    showModal("Требуется HTTPS", "Мобильные браузеры отключают доступ к камере для локальных файлов (file://) без HTTPS. Запустите через HTTPS или локальный сервер!");
+                }
+
+                const initialized = await initPoseLandmarker();
+                if (initialized) {
+                    startCamera();
+                }
+            }
+        }
+
+        function startCamera() {
+            const constraints = {
+                video: {
+                    facingMode: "user",
+                    width: { ideal: 640 },
+                    height: { ideal: 480 }
+                }
+            };
+
+            navigator.mediaDevices.getUserMedia(constraints)
+                .then((stream) => {
+                    video.srcObject = stream;
+                    video.addEventListener("loadeddata", predictWebcam);
+                    
+                    // Показываем элементы видео
+                    video.classList.remove('hidden');
+                    canvasElement.classList.remove('hidden');
+                    document.getElementById('cameraPlaceholder').classList.add('hidden');
+                    document.getElementById('poseStateBadge').classList.remove('hidden');
+                    document.getElementById('angleBadge').classList.remove('hidden');
+                    
+                    // Обновляем кнопку
+                    document.getElementById('camBtnText').innerText = "Выключить камеру";
+                    document.getElementById('toggleCamBtn').className = "w-full bg-slate-700 hover:bg-slate-600 active:bg-slate-800 text-white font-bold py-3 px-3 rounded-lg text-xs flex items-center justify-center gap-2 transition-all shadow-md";
+                    isCameraActive = true;
+                })
+                .catch((err) => {
+                    console.error("Ошибка доступа к камере:", err);
+                    showModal("Доступ запрещен", "Не удалось получить доступ к передней камере. Разрешите доступ в настройках браузера.");
+                });
+        }
+
+        function stopCamera() {
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+            }
+            if (animFrameId) {
+                cancelAnimationFrame(animFrameId);
+            }
+            
+            video.classList.add('hidden');
+            canvasElement.classList.add('hidden');
+            document.getElementById('cameraPlaceholder').classList.remove('hidden');
+            document.getElementById('poseStateBadge').classList.add('hidden');
+            document.getElementById('angleBadge').classList.add('hidden');
+
+            document.getElementById('camBtnText').innerText = "Включить камеру";
+            document.getElementById('toggleCamBtn').className = "w-full bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-700 text-white font-bold py-3 px-3 rounded-lg text-xs flex items-center justify-center gap-2 transition-all shadow-md";
+            isCameraActive = false;
+        }
+
+        // Цикл обработки кадров
+        async function predictWebcam() {
+            // Корректировка размеров Canvas под размеры видео
+            canvasElement.width = video.videoWidth;
+            canvasElement.height = video.videoHeight;
+
+            if (runningMode === "IMAGE") {
+                runningMode = "VIDEO";
+                await poseLandmarker.setOptions({ runningMode: "VIDEO" });
+            }
+
+            let startTimeMs = performance.now();
+            if (lastVideoTime !== video.currentTime) {
+                lastVideoTime = video.currentTime;
+                
+                // Распознавание позы
+                const results = poseLandmarker.detectForVideo(video, startTimeMs);
+
+                // Очистка Canvas
+                canvasCtx.save();
+                canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+                // Анализ Ключевых Точек (Landmarks)
+                if (results.landmarks && results.landmarks.length > 0) {
+                    const landmarks = results.landmarks[0];
+
+                    // Индексы точек MediaPipe Pose:
+                    // Левая рука: Плечо = 11, Локоть = 13, Запястье = 15
+                    // Правая рука: Плечо = 12, Локоть = 14, Запястье = 16
+                    const leftShoulder = landmarks[11];
+                    const leftElbow = landmarks[13];
+                    const leftWrist = landmarks[15];
+
+                    const rightShoulder = landmarks[12];
+                    const rightElbow = landmarks[14];
+                    const rightWrist = landmarks[16];
+
+                    // Расчет углов в обох локтях
+                    let leftAngle = calculateAngle(leftShoulder, leftElbow, leftWrist);
+                    let rightAngle = calculateAngle(rightShoulder, rightElbow, rightWrist);
+
+                    // Усредненный угол локтей
+                    let avgAngle = Math.round((leftAngle + rightAngle) / 2);
+                    
+                    document.getElementById('angleText').innerText = avgAngle;
+
+                    // Отрисовка линий рук на Canvas
+                    drawArmSkeleton(leftShoulder, leftElbow, leftWrist);
+                    drawArmSkeleton(rightShoulder, rightElbow, rightWrist);
+
+                    // --- АЛГОРИТМ И АВТОМАТ СОСТОЯНИЙ ОТЖИМАНИЙ ---
+                    processPushupState(avgAngle);
+                }
+
+                canvasCtx.restore();
+            }
+
+            if (isCameraActive) {
+                animFrameId = requestAnimationFrame(predictWebcam);
+            }
+        }
+
+        // Математический расчёт угла между тремя точками (A-B-C)
+        function calculateAngle(a, b, c) {
+            const radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
+            let angle = Math.abs((radians * 180.0) / Math.PI);
+            if (angle > 180.0) {
+                angle = 360 - angle;
+            }
+            return angle;
+        }
+
+        // Обработка логики полного цикла отжимания (State Machine)
+        function processPushupState(angle) {
+            const now = Date.now();
+            const stateTextElem = document.getElementById('poseStateText');
+
+            // Пороговые значения углов:
+            // > 150 градусов: Руки выпрямлены (ВЕРХ)
+            // < 95 градусов: Руки согнуты в отжимании (ВНИЗ)
+            
+            if (angle > 150) {
+                if (pushupState === "DOWN") {
+                    // Защита от частых срабатываний
+                    if (now - lastRepTime > MIN_REP_INTERVAL) {
+                        pushupState = "TOP";
+                        stateTextElem.innerText = "ВЕРХ";
+                        stateTextElem.className = "text-cyan-400";
+
+                        // ЗАСЧИТАНО УСПЕШНОЕ ОТЖИМАНИЕ!
+                        pushups++;
+                        lastRepTime = now;
+                        dealDamage(10); // Наносим урон боссу
+                    }
+                } else {
+                    pushupState = "TOP";
+                    stateTextElem.innerText = "ВЕРХ";
+                    stateTextElem.className = "text-cyan-400";
+                }
+            } else if (angle < 95) {
+                if (pushupState !== "DOWN") {
+                    pushupState = "DOWN";
+                    stateTextElem.innerText = "ВНИЗ (ЖИМ)";
+                    stateTextElem.className = "text-amber-400 font-black";
+                }
+            }
+        }
+
+        // Отрисовка ключевых точек рук для визуального контроля
+        function drawArmSkeleton(p1, p2, p3) {
+            const w = canvasElement.width;
+            const h = canvasElement.height;
+
+            // Линии
+            canvasCtx.beginPath();
+            canvasCtx.moveTo(p1.x * w, p1.y * h);
+            canvasCtx.lineTo(p2.x * w, p2.y * h);
+            canvasCtx.lineTo(p3.x * w, p3.y * h);
+            canvasCtx.strokeStyle = pushupState === "DOWN" ? "#f59e0b" : "#06b6d4";
+            canvasCtx.lineWidth = 4;
+            canvasCtx.stroke();
+
+            // Точки
+            [p1, p2, p3].forEach(p => {
+                canvasCtx.beginPath();
+                canvasCtx.arc(p.x * w, p.y * h, 6, 0, 2 * Math.PI);
+                canvasCtx.fillStyle = "#ffffff";
+                canvasCtx.fill();
+                canvasCtx.strokeStyle = "#000000";
+                canvasCtx.lineWidth = 1.5;
+                canvasCtx.stroke();
+            });
+        }
+
+        // Вспомогательное окно сообщений
+        function showModal(title, msg) {
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalMessage').innerText = msg;
+            document.getElementById('infoModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('infoModal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
+```
