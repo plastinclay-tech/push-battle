@@ -232,8 +232,6 @@
                 
                 const leftShoulder = landmarks[11];
                 const rightShoulder = landmarks[12];
-                const leftHip = landmarks[23];
-                const rightHip = landmarks[24];
                 const leftElbow = landmarks[13];
                 const rightElbow = landmarks[14];
                 const leftWrist = landmarks[15];
@@ -243,16 +241,19 @@
                                   leftShoulder.visibility > 0.3 && rightShoulder.visibility > 0.3;
 
                 if (isVisible) {
-                    // Проверка на вертикальное положение (если пользователь сидит)
-                    let shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
-                    let hipMidY = (leftHip && rightHip && leftHip.visibility > 0.2 && rightHip.visibility > 0.2) 
-                                  ? (leftHip.y + rightHip.y) / 2 
-                                  : shoulderMidY + 0.3;
-
-                    let verticalSpan = Math.abs(hipMidY - shoulderMidY);
+                    // АНТИ-ЧИТ ПО ПОЛОЖЕНИЮ ПЛЕЧ: 
+                    // Когда человек сидит перед камерой снизу, плечи располагаются слишком высоко и вертикально (мал Y или сильный перепад).
+                    // В упоре лёжа плечи шире и находятся ближе к центру/низу кадра. Проверим расстояние между плечами:
+                    const shoulderWidth = Math.abs(leftShoulder.x - rightShoulder.x);
                     
-                    if (verticalSpan > 0.36) {
-                        document.getElementById("statusMsg").innerText = "⚠️ ЛЯГТЕ В УПОР ЛЁЖА!";
+                    // Если плечи слишком близко друг к другу или человек сидит (высокая вертикальная позиция центров плеч)
+                    const shoulderCenterY = (leftShoulder.y + rightShoulder.y) / 2;
+                    
+                    // Если плечи выше определенного уровня экрана (например, < 0.35 от верха при взгляде снизу) — значит человек сидит/стоит
+                    const isSitting = shoulderCenterY < 0.35 && shoulderWidth < 0.35;
+
+                    if (isSitting) {
+                        document.getElementById("statusMsg").innerText = "⚠️ СЯДЬТЕ / ЛЯГТЕ В УПОР ЛЁЖА!";
                         document.getElementById("poseStateText").innerText = "СИДИТ/СТОИТ";
                         pushupState = 0;
                         canvasCtx.restore();
@@ -261,8 +262,8 @@
 
                     document.getElementById("statusMsg").innerText = "🔥 Бой идёт! Отжимайтесь!";
                     
-                    // Рисуем полную сетку каркаса (как в референсе)
-                    drawFullBodyMesh(leftShoulder, rightShoulder, leftElbow, rightElbow, leftWrist, rightWrist, leftHip, rightHip);
+                    // Рисуем стильный каркас верхнего тела (плечи, локти, запястья)
+                    drawSkeletonMesh(leftShoulder, rightShoulder, leftElbow, rightElbow, leftWrist, rightWrist);
 
                     const leftAngle = calculateAngle(leftShoulder, leftElbow, leftWrist);
                     const rightAngle = calculateAngle(rightShoulder, rightElbow, rightWrist);
@@ -270,7 +271,7 @@
 
                     processPushupState(avgAngle);
                 } else {
-                    document.getElementById("statusMsg").innerText = "⚠️ Отойдите назад, чтобы тело было в кадре";
+                    document.getElementById("statusMsg").innerText = "⚠️ Отойдите назад, чтобы руки были в кадре";
                     document.getElementById("poseStateText").innerText = "В КАДРЕ?";
                 }
             } else if (isReadyToFight) {
@@ -287,22 +288,15 @@
             return angle;
         }
 
-        // Отрисовка полной сетки каркаса тела и суставов
-        function drawFullBodyMesh(ls, rs, le, re, lw, rw, lh, rh) {
-            const color = pushupState === 1 ? "#ef4444" : "#a855f7"; // Фиолетово-желтая сетка под стиль референса
+        // Отрисовка скелетной сетки (линии плеч и рук + желтые узлы суставов)
+        function drawSkeletonMesh(ls, rs, le, re, lw, rw) {
+            const color = pushupState === 1 ? "#ef4444" : "#a855f7"; // Фиолетово-красная сетка
 
-            // Соединения линий суставов
             const connections = [
-                [ls, rs], // Плечи
+                [ls, rs], // Линия плеч
                 [ls, le], [le, lw], // Левая рука
                 [rs, re], [re, rw]  // Правая рука
             ];
-
-            if (lh && rh && lh.visibility > 0.2 && rh.visibility > 0.2) {
-                connections.push([lh, rh]); // Бёдра
-                connections.push([ls, lh]); // Торс лево
-                connections.push([rs, rh]); // Торс право
-            }
 
             canvasCtx.lineWidth = 4;
             canvasCtx.strokeStyle = color;
@@ -316,9 +310,9 @@
                 }
             });
 
-            // Точки суставов (желтые кругляшки)
-            [ls, rs, le, re, lw, rw, lh, rh].forEach(p => {
-                if (p && p.visibility > 0.2) {
+            // Узловые точки суставов
+            [ls, rs, le, re, lw, rw].forEach(p => {
+                if (p) {
                     canvasCtx.beginPath();
                     canvasCtx.arc(p.x * canvasElement.width, p.y * canvasElement.height, 6, 0, 2 * Math.PI);
                     canvasCtx.fillStyle = "#eab308"; // Желтые суставы
