@@ -127,6 +127,8 @@
 
         let pushupState = 0; // 0 = ВЕРХ, 1 = ВНИЗ
         let lastStateChangeTime = 0;
+        let shoulderYTop = 0;
+        let shoulderYBottom = 0;
 
         const bosses = [
             { name: "Сквернословный Орк", emoji: "👹", hp: 100 },
@@ -207,8 +209,8 @@
                     } else {
                         clearInterval(prepInterval);
                         isReadyToFight = true;
-                        statusMsg.innerText = "🔥 Примите упор лёжа!";
-                        document.getElementById("poseStateText").innerText = "ПОИСК";
+                        statusMsg.innerText = "🔥 Лягте в упор лёжа и отжимайтесь!";
+                        document.getElementById("poseStateText").innerText = "ВЕРХ";
                     }
                 }, 1000);
 
@@ -242,22 +244,16 @@
                                   leftHip.visibility > 0.4 && rightHip.visibility > 0.4;
 
                 if (isVisible) {
-                    // АНТИ-ЧИТ: Проверка наклона торса
                     const shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
                     const hipMidY = (leftHip.y + rightHip.y) / 2;
-                    const shoulderMidX = (leftShoulder.x + rightShoulder.x) / 2;
-                    const hipMidX = (leftHip.x + rightHip.x) / 2;
-
-                    // Угол наклона торса относительно горизонтали
-                    const torsoAngle = Math.abs(Math.atan2(hipMidY - shoulderMidY, hipMidX - shoulderMidX) * 180 / Math.PI);
                     
-                    // Если торс наклонен (ближе к горизонтали/планке, угол < 55°), то это упор лёжа. 
-                    // Если человек сидит прямо, угол торса близок к вертикали (> 60°).
-                    const isPlankPosition = torsoAngle < 55;
+                    // СТРОГИЙ АНТИ-ЧИТ: Если пользователь сидит, расстояние по вертикали (y) между плечами и тазом большое (> 0.25)
+                    const bodyVerticalSpan = Math.abs(hipMidY - shoulderMidY);
+                    const isSittingOrStanding = bodyVerticalSpan > 0.22;
 
-                    if (!isPlankPosition) {
-                        document.getElementById("statusMsg").innerText = "⚠️ Лягте в упор лёжа!";
-                        document.getElementById("poseStateText").innerText = "СТОИТ/СИДИТ";
+                    if (isSittingOrStanding) {
+                        document.getElementById("statusMsg").innerText = "⚠️ Лягте на пол в упор лёжа!";
+                        document.getElementById("poseStateText").innerText = "ЛЯГТЕ НА ПОЛ";
                         pushupState = 0;
                         canvasCtx.restore();
                         return;
@@ -273,7 +269,7 @@
                     drawSkeletonLine(rightShoulder, landmarks[14]);
                     drawSkeletonLine(landmarks[14], rightWrist);
 
-                    processPushupState(avgAngle);
+                    processPushupState(avgAngle, shoulderMidY);
                 } else {
                     document.getElementById("poseStateText").innerText = "ТЕЛО В КАДРЕ?";
                 }
@@ -301,24 +297,32 @@
             canvasCtx.stroke();
         }
 
-        function processPushupState(angle) {
+        function processPushupState(angle, shoulderY) {
             const now = Date.now();
             const stateText = document.getElementById("poseStateText");
-            const cooldown = 500;
+            const cooldown = 400;
 
             if (angle > 140) {
                 if (pushupState === 1 && (now - lastStateChangeTime > cooldown)) {
-                    pushupState = 0;
-                    lastStateChangeTime = now;
-                    triggerHit(15, "ОТЖИМАНИЕ! 🔥");
-                    stateText.innerText = "ВЕРХ";
-                    stateText.className = "text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded font-mono border border-emerald-800";
-                    return;
+                    let verticalAmplitude = shoulderYBottom - shoulderYTop;
+                    
+                    if (verticalAmplitude > 0.03) {
+                        pushupState = 0;
+                        lastStateChangeTime = now;
+                        triggerHit(15, "ОТЖИМАНИЕ! 🔥");
+                        stateText.innerText = "ВЕРХ";
+                        stateText.className = "text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded font-mono border border-emerald-800";
+                        return;
+                    }
                 }
                 pushupState = 0;
+                shoulderYTop = shoulderY;
                 stateText.innerText = "ВЕРХ";
                 stateText.className = "text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded font-mono border border-emerald-800";
             } else if (angle < 95) {
+                if (pushupState === 0) {
+                    shoulderYBottom = shoulderY;
+                }
                 pushupState = 1;
                 stateText.innerText = "ВНИЗ";
                 stateText.className = "text-[10px] px-2 py-0.5 bg-red-950 text-red-400 rounded font-mono border border-red-800";
