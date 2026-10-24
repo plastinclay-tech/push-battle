@@ -147,8 +147,8 @@
             pose.setOptions({
                 modelComplexity: 1,
                 smoothLandmarks: true,
-                minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5
+                minDetectionConfidence: 0.4,
+                minTrackingConfidence: 0.4
             });
 
             pose.onResults(onPoseResults);
@@ -237,10 +237,13 @@
                 const leftWrist = landmarks[15];
                 const rightWrist = landmarks[16];
 
+                // Мягкий и стабильный допуск видимости точек
                 const isVisible = leftShoulder && rightShoulder && leftElbow && rightElbow && leftWrist && rightWrist &&
-                                  leftShoulder.visibility > 0.4 && rightShoulder.visibility > 0.4;
+                                  leftShoulder.visibility > 0.3 && rightShoulder.visibility > 0.3;
 
                 if (isVisible) {
+                    document.getElementById("statusMsg").innerText = "🔥 Бой идёт! Отжимайтесь!";
+                    
                     const leftAngle = calculateAngle(leftShoulder, leftElbow, leftWrist);
                     const rightAngle = calculateAngle(rightShoulder, rightElbow, rightWrist);
                     const avgAngle = (leftAngle + rightAngle) / 2;
@@ -252,7 +255,8 @@
 
                     processPushupState(avgAngle);
                 } else {
-                    document.getElementById("poseStateText").innerText = "РУКИ В КАДРЕ?";
+                    document.getElementById("statusMsg").innerText = "⚠️ Отойдите назад, чтобы руки были в кадре";
+                    document.getElementById("poseStateText").innerText = "В КАДРЕ?";
                 }
             } else if (isReadyToFight) {
                 document.getElementById("poseStateText").innerText = "НЕТ ТЕЛА";
@@ -281,7 +285,7 @@
         function processPushupState(angle) {
             const now = Date.now();
             const stateText = document.getElementById("poseStateText");
-            const cooldown = 500;
+            const cooldown = 450; // Оптимизированный интервал между повторениями
 
             if (angle > 140) {
                 if (pushupState === 1 && (now - lastStateChangeTime > cooldown)) {
