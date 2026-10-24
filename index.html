@@ -119,7 +119,7 @@
         let pose = null;
         let camera = null;
         let webcamRunning = false;
-        let isReadyToFight = false; // Флаг готовности после таймера
+        let isReadyToFight = false;
         
         let videoElement = document.getElementById("webcam");
         let canvasElement = document.getElementById("outputCanvas");
@@ -193,7 +193,6 @@
                 bossAvatar.classList.add("opacity-0");
                 btn.innerHTML = "<span>⏹️</span> Стоп";
 
-                // 3-секундный таймер подготовки (чтобы успеть поставить телефон)
                 let countdown = 3;
                 document.getElementById("poseStateText").innerText = "ПАУЗА";
                 
@@ -208,8 +207,8 @@
                     } else {
                         clearInterval(prepInterval);
                         isReadyToFight = true;
-                        statusMsg.innerText = "🔥 Бой начался! Отжимайтесь!";
-                        document.getElementById("poseStateText").innerText = "ВЕРХ";
+                        statusMsg.innerText = "🔥 Примите упор лёжа для боя!";
+                        document.getElementById("poseStateText").innerText = "ПОИСК";
                     }
                 }, 1000);
 
@@ -233,24 +232,49 @@
                 
                 const leftShoulder = landmarks[11];
                 const rightShoulder = landmarks[12];
+                const leftHip = landmarks[23];
+                const rightHip = landmarks[24];
                 const leftWrist = landmarks[15];
                 const rightWrist = landmarks[16];
 
-                const isVisible = leftShoulder && rightShoulder && leftWrist && rightWrist &&
-                                  leftShoulder.visibility > 0.5 && rightShoulder.visibility > 0.5 &&
-                                  leftWrist.visibility > 0.5 && rightWrist.visibility > 0.5;
+                const isVisible = leftShoulder && rightShoulder && leftHip && rightHip && leftWrist && rightWrist &&
+                                  leftShoulder.visibility > 0.5 && rightShoulder.visibility > 0.5;
 
                 if (isVisible) {
-                    const leftAngle = calculateAngle(leftShoulder, landmarks[13], leftWrist);
-                    const rightAngle = calculateAngle(rightShoulder, landmarks[14], rightWrist);
-                    const avgAngle = (leftAngle + rightAngle) / 2;
+                    // АНТИ-ЧИТ: Проверка положения тела.
+                    // Если пользователь сидит вертикально, разница по вертикали (y) между плечами и бедрами большая.
+                    // В упоре лёжа тело вытянуто горизонтально/наискосок, либо плечи находятся ниже/на уровне бедер относительно камеры на полу.
+                    // Проверим наклон торса: угол линии плечи-бедра к горизонтали.
+                    const shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
+                    const hipMidY = (leftHip.y + rightHip.y) / 2;
+                    const shoulderMidX = (leftShoulder.x + rightShoulder.x) / 2;
+                    const hipMidX = (leftHip.x + rightHip.x) / 2;
 
-                    drawSkeletonLine(leftShoulder, landmarks[13]);
-                    drawSkeletonLine(landmarks[13], leftWrist);
-                    drawSkeletonLine(rightShoulder, landmarks[14]);
-                    drawSkeletonLine(landmarks[14], rightWrist);
+                    let torsoAngle = Math.abs(Math.atan2(hipMidY - shoulderMidY, hipMidX - shoulderMidX) * 180 / Math.PI);
+                    
+                    // Если человек сидит прямо, torsoAngle близок к 90°. В упор лежа торс ближе к горизонтали (< 60°).
+                    // Также проверяем, что плечи и кисти видны.
+                    const isHorizontalOrPlank = torsoAngle < 65; // фильтр вертикального положения (сидя/стоя)
 
-                    processPushupState(avgAngle);
+                    if (isHorizontalOrPlank) {
+                        document.getElementById("statusMsg.innerText") // можно обновить статус
+                        const leftAngle = calculateAngle(leftShoulder, landmarks[13], leftWrist);
+                        const rightAngle = calculateAngle(rightShoulder, landmarks[14], rightWrist);
+                        const avgAngle = (leftAngle + rightAngle) / 2;
+
+                        drawSkeletonLine(leftShoulder, landmarks[13]);
+                        drawSkeletonLine(landmarks[13], leftWrist);
+                        drawSkeletonLine(rightShoulder, landmarks[14]);
+                        drawSkeletonLine(landmarks[14], rightWrist);
+
+                        document.getElementById("statusMsg").innerText = "🔥 Бой идет! Отжимайтесь!";
+                        processPushupState(avgAngle);
+                    } else {
+                        // Пользователь сидит или стоит
+                        document.getElementById("statusMsg").innerText = "⚠️ Примите упор лёжа (лягте в планках)!";
+                        document.getElementById("poseStateText").innerText = "СТОИТ/СИДИТ";
+                        pushupState = 0;
+                    }
                 } else {
                     document.getElementById("poseStateText").innerText = "РУКИ В КАДРЕ?";
                 }
@@ -314,7 +338,6 @@
             updateBossUI();
             triggerEffects(customText || `-${damageAmount}`);
 
-            // Победа над боссом без всплывающих окон alert
             if (currentHp === 0) {
                 isReadyToFight = false;
                 document.getElementById("statusMsg").innerText = "🎉 ПОБЕДА! Новый босс спешит!";
