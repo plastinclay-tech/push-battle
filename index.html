@@ -125,8 +125,10 @@
         let canvasElement = document.getElementById("outputCanvas");
         let canvasCtx = canvasElement.getContext("2d");
 
-        let pushupState = 0; // 0 = ВЕРХ, 1 = ВНИЗ
-        let lastStateChangeTime = 0;
+        // Строгий конечный автомат (FSM)
+        let pushupState = 'UP'; // 'UP' -> 'DESCENDING' -> 'BOTTOM' -> 'ASCENDING'
+        let frameCounter = 0;
+        const requiredFrames = 3; // Стабильность кадров для защиты от дребезга и качания телефона
 
         const bosses = [
             { name: "Сквернословный Орк", emoji: "👹", hp: 100 },
@@ -147,8 +149,8 @@
             pose.setOptions({
                 modelComplexity: 1,
                 smoothLandmarks: true,
-                minDetectionConfidence: 0.4,
-                minTrackingConfidence: 0.4
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
             });
 
             pose.onResults(onPoseResults);
@@ -207,8 +209,10 @@
                     } else {
                         clearInterval(prepInterval);
                         isReadyToFight = true;
-                        statusMsg.innerText = "🔥 Бой идёт! Отжимайтесь!";
+                        statusMsg.innerText = "🔥 Примите упор лёжа!";
                         document.getElementById("poseStateText").innerText = "ВЕРХ";
+                        pushupState = 'UP';
+                        frameCounter = 0;
                     }
                 }, 1000);
 
@@ -236,23 +240,57 @@
                 const rightElbow = landmarks[14];
                 const leftWrist = landmarks[15];
                 const rightWrist = landmarks[16];
+                const leftHip = landmarks[23];
+                const rightHip = landmarks[24];
 
-                // Мягкая проверка видимости: сетка рисуется всегда, когда видны плечи и руки
                 const isVisible = leftShoulder && rightShoulder && leftElbow && rightElbow && leftWrist && rightWrist &&
-                                  leftShoulder.visibility > 0.15 && rightShoulder.visibility > 0.15;
+                                  leftShoulder.visibility > 0.3 && rightShoulder.visibility > 0.3;
 
                 if (isVisible) {
-                    document.getElementById("statusMsg").innerText = "🔥 Отжимайтесь!";
+                    // НАДЁЖНАЯ ПРОВЕРКА ПЛАНКИ (ЗАЩИТА ОТ СИДЕНИЯ И СТОЯНИЯ)
+                    let isPlank = false;
+                    if (leftHip && rightHip && leftHip.visibility > 0.2 && rightHip.visibility > 0.2) {
+                        const shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
+                        const hipMidY = (leftHip.y + rightHip.y) / 2;
+                        const shoulderMidX = (leftShoulder.x + rightShoulder.x) / 2;
+                        const hipMidX = (leftHip.x + rightHip.x) / 2;
+
+                        const deltaY = Math.abs(hipMidY - shoulderMidY);
+                        const deltaX = Math.abs(hipMidX - shoulderMidX);
+                        const bodyAngle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
+
+                        // Если угол корпуса больше 42 градусов — человек сидит или стоит вертикально
+                        isPlank = bodyAngle < 42;
+                    } else {
+                        // Если бёдра скрыты близко к камере, проверяем горизонтальность линии плеч
+                        const shoulderTilt = Math.abs(leftShoulder.y - rightShoulder.y);
+                        const shoulderWidth = Math.abs(leftShoulder.x - rightShoulder.x);
+                        isPlank = shoulderTilt < 0.18 && shoulderWidth > 0.25;
+                    }
+
+                    if (!isPlank) {
+                        document.getElementById("statusMsg").innerText = "⚠️ ПРИНИМИТЕ УПОР ЛЁЖА (ГОРИЗОНТАЛЬНО)!";
+                        document.getElementById("poseStateText").innerText = "НЕ ПЛАНКА";
+                        pushupState = 'UP';
+                        frameCounter = 0;
+                        canvasCtx.restore();
+                        return;
+                    }
+
+                    document.getElementById("statusMsg").innerText = "🔥 Бой идёт! Отжимайтесь!";
                     
-                    // Рисуем стабильный каркас плеч и рук
+                    // Рисуем скелет
                     drawSkeletonMesh(leftShoulder, rightShoulder, leftElbow, rightElbow, leftWrist, rightWrist);
 
+                    // Вычисляем углы обеих рук
                     const leftAngle = calculateAngle(leftShoulder, leftElbow, leftWrist);
                     const rightAngle = calculateAngle(rightShoulder, rightElbow, rightWrist);
+                    const avgAngle = (leftAngle + rightAngle) / 2;
 
-                    processPushupState(leftAngle, rightAngle);
+                    // Выполняем логику конечного автомата (FSM)
+                    processFSM(avgAngle);
                 } else {
-                    document.getElementById("statusMsg").innerText = "⚠️ Держите руки и плечи в кадре";
+                    document.getElementById("statusMsg").innerText = "⚠️ Держите плечи и руки в кадре";
                     document.getElementById("poseStateText").innerText = "ПОИСК";
                 }
             } else if (isReadyToFight) {
@@ -270,7 +308,7 @@
         }
 
         function drawSkeletonMesh(ls, rs, le, re, lw, rw) {
-            const color = pushupState === 1 ? "#ef4444" : "#a855f7";
+            const color = pushupState === 'BOTTOM' || pushupState === 'DESCENDING' ? "#ef4444" : "#a855f7";
 
             const connections = [
                 [ls, rs], // Линия плеч
@@ -300,31 +338,77 @@
             });
         }
 
-        // Подсчёт при сгибании обеих рук
-        function processPushupState(leftAngle, rightAngle) {
-            const now = Date.now();
+        // СТРОГИЙ КОНЕЧНЫЙ АВТОМАТ (FSM) С ЗАЩИТОЙ ОТ ДРЕБЕЗГА КАДРОВ
+        function processFSM(avgAngle) {
             const stateText = document.getElementById("poseStateText");
-            const cooldown = 350;
 
-            const bothDown = leftAngle < 100 && rightAngle < 100;
-            const bothUp = leftAngle > 118 && rightAngle > 118;
-
-            if (bothUp) {
-                if (pushupState === 1 && (now - lastStateChangeTime > cooldown)) {
-                    pushupState = 0;
-                    lastStateChangeTime = now;
-                    triggerHit(15, "ОТЖИМАНИЕ! 🔥");
+            switch (pushupState) {
+                case 'UP':
                     stateText.innerText = "ВЕРХ";
                     stateText.className = "text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded font-mono border border-emerald-800";
-                    return;
-                }
-                pushupState = 0;
-                stateText.innerText = "ВЕРХ";
-                stateText.className = "text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded font-mono border border-emerald-800";
-            } else if (bothDown) {
-                pushupState = 1;
-                stateText.innerText = "ВНИЗ";
-                stateText.className = "text-[10px] px-2 py-0.5 bg-red-950 text-red-400 rounded font-mono border border-red-800";
+                    
+                    if (avgAngle < 110) { // Начало сгибания рук
+                        frameCounter++;
+                        if (frameCounter >= requiredFrames) {
+                            pushupState = 'DESCENDING';
+                            frameCounter = 0;
+                        }
+                    } else {
+                        frameCounter = 0;
+                    }
+                    break;
+
+                case 'DESCENDING':
+                    stateText.innerText = "ОПУСКАНИЕ";
+                    stateText.className = "text-[10px] px-2 py-0.5 bg-amber-950 text-amber-400 rounded font-mono border border-amber-800";
+                    
+                    if (avgAngle <= 95) { // Достигли нижней точки
+                        frameCounter++;
+                        if (frameCounter >= requiredFrames) {
+                            pushupState = 'BOTTOM';
+                            frameCounter = 0;
+                        }
+                    } else if (avgAngle > 125) { // Вернулись вверх без выполнения
+                        pushupState = 'UP';
+                        frameCounter = 0;
+                    } else {
+                        frameCounter = 0;
+                    }
+                    break;
+
+                case 'BOTTOM':
+                    stateText.innerText = "НИЗ";
+                    stateText.className = "text-[10px] px-2 py-0.5 bg-red-950 text-red-400 rounded font-mono border border-red-800";
+                    
+                    if (avgAngle > 105) { // Начало подъема
+                        frameCounter++;
+                        if (frameCounter >= requiredFrames) {
+                            pushupState = 'ASCENDING';
+                            frameCounter = 0;
+                        }
+                    } else {
+                        frameCounter = 0;
+                    }
+                    break;
+
+                case 'ASCENDING':
+                    stateText.innerText = "ПОДЪЁМ";
+                    stateText.className = "text-[10px] px-2 py-0.5 bg-blue-950 text-blue-400 rounded font-mono border border-blue-800";
+                    
+                    if (avgAngle >= 125) { // Полное выпрямление рук (завершение цикла!)
+                        frameCounter++;
+                        if (frameCounter >= requiredFrames) {
+                            pushupState = 'UP';
+                            frameCounter = 0;
+                            triggerHit(15, "ОТЖИМАНИЕ! 🔥");
+                        }
+                    } else if (avgAngle < 90) { // Снова опустились вниз
+                        pushupState = 'BOTTOM';
+                        frameCounter = 0;
+                    } else {
+                        frameCounter = 0;
+                    }
+                    break;
             }
         }
 
@@ -354,49 +438,4 @@
 
                     document.getElementById("bossName").innerText = bosses[bossIndex].emoji + " " + bosses[bossIndex].name;
                     document.getElementById("bossLevelText").innerText = "Босс уровня " + bossLevel;
-                    document.getElementById("bossMaxHpText").innerText = "/ " + maxHp + " HP";
-                    
-                    updateBossUI();
-                    isReadyToFight = true;
-                    document.getElementById("statusMsg").innerText = "🔥 Бой продолжается!";
-                }, 1500);
-            }
-        }
-
-        function manualHit() {
-            pushups++;
-            document.getElementById("pushupCount").innerText = pushups;
-            triggerHit(15, "-15 УДАР!");
-        }
-
-        function updateBossUI() {
-            const hpBar = document.getElementById("bossHpBar");
-            const hpText = document.getElementById("bossHpText");
-            const percentage = (currentHp / maxHp) * 100;
-            
-            hpBar.style.width = percentage + "%";
-            hpText.innerText = currentHp;
-        }
-
-        function triggerEffects(text) {
-            const container = document.getElementById("gameContainer");
-            container.classList.add("boss-shake");
-            setTimeout(() => container.classList.remove("boss-shake"), 300);
-
-            const floatCont = document.getElementById("floatingContainer");
-            const dmgEl = document.createElement("div");
-            dmgEl.className = "damage-float text-amber-300 text-xl";
-            dmgEl.innerText = text;
-            dmgEl.style.left = Math.random() * 60 + 20 + "%";
-            dmgEl.style.top = Math.random() * 40 + 30 + "%";
-            floatCont.appendChild(dmgEl);
-
-            setTimeout(() => dmgEl.remove(), 800);
-        }
-
-        window.addEventListener("DOMContentLoaded", () => {
-            initPose();
-        });
-    </script>
-</body>
-</html>
+                    documen
