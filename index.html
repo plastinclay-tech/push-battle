@@ -127,8 +127,6 @@
 
         let pushupState = 0; // 0 = ВЕРХ, 1 = ВНИЗ
         let lastStateChangeTime = 0;
-        let shoulderYTop = 0;
-        let shoulderYBottom = 0;
 
         const bosses = [
             { name: "Сквернословный Орк", emoji: "👹", hp: 100 },
@@ -209,8 +207,8 @@
                     } else {
                         clearInterval(prepInterval);
                         isReadyToFight = true;
-                        statusMsg.innerText = "🔥 Лягте в упор лёжа и отжимайтесь!";
-                        document.getElementById("poseStateText").innerText = "ВЕРХ";
+                        statusMsg.innerText = "🔥 Примите упор лёжа!";
+                        document.getElementById("poseStateText").innerText = "ПОИСК";
                     }
                 }, 1000);
 
@@ -234,14 +232,38 @@
                 
                 const leftShoulder = landmarks[11];
                 const rightShoulder = landmarks[12];
+                const leftHip = landmarks[23];
+                const rightHip = landmarks[24];
                 const leftWrist = landmarks[15];
                 const rightWrist = landmarks[16];
 
-                const isVisible = leftShoulder && rightShoulder && leftWrist && rightWrist &&
-                                  leftShoulder.visibility > 0.4 && rightShoulder.visibility > 0.4;
+                const isVisible = leftShoulder && rightShoulder && leftHip && rightHip && leftWrist && rightWrist &&
+                                  leftShoulder.visibility > 0.4 && rightShoulder.visibility > 0.4 &&
+                                  leftHip.visibility > 0.4 && rightHip.visibility > 0.4;
 
                 if (isVisible) {
-                    const shoulderY = (leftShoulder.y + rightShoulder.y) / 2;
+                    // АНТИ-ЧИТ: Проверка наклона торса
+                    const shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
+                    const hipMidY = (leftHip.y + rightHip.y) / 2;
+                    const shoulderMidX = (leftShoulder.x + rightShoulder.x) / 2;
+                    const hipMidX = (leftHip.x + rightHip.x) / 2;
+
+                    // Угол наклона торса относительно горизонтали
+                    const torsoAngle = Math.abs(Math.atan2(hipMidY - shoulderMidY, hipMidX - shoulderMidX) * 180 / Math.PI);
+                    
+                    // Если торс наклонен (ближе к горизонтали/планке, угол < 55°), то это упор лёжа. 
+                    // Если человек сидит прямо, угол торса близок к вертикали (> 60°).
+                    const isPlankPosition = torsoAngle < 55;
+
+                    if (!isPlankPosition) {
+                        document.getElementById("statusMsg").innerText = "⚠️ Лягте в упор лёжа!";
+                        document.getElementById("poseStateText").innerText = "СТОИТ/СИДИТ";
+                        pushupState = 0;
+                        canvasCtx.restore();
+                        return;
+                    }
+
+                    document.getElementById("statusMsg").innerText = "🔥 Бой идёт! Отжимайтесь!";
                     const leftAngle = calculateAngle(leftShoulder, landmarks[13], leftWrist);
                     const rightAngle = calculateAngle(rightShoulder, landmarks[14], rightWrist);
                     const avgAngle = (leftAngle + rightAngle) / 2;
@@ -251,9 +273,9 @@
                     drawSkeletonLine(rightShoulder, landmarks[14]);
                     drawSkeletonLine(landmarks[14], rightWrist);
 
-                    processPushupState(avgAngle, shoulderY);
+                    processPushupState(avgAngle);
                 } else {
-                    document.getElementById("poseStateText").innerText = "РУКИ В КАДРЕ?";
+                    document.getElementById("poseStateText").innerText = "ТЕЛО В КАДРЕ?";
                 }
             } else if (isReadyToFight) {
                 document.getElementById("poseStateText").innerText = "НЕТ ТЕЛА";
@@ -279,37 +301,24 @@
             canvasCtx.stroke();
         }
 
-        function processPushupState(angle, shoulderY) {
+        function processPushupState(angle) {
             const now = Date.now();
             const stateText = document.getElementById("poseStateText");
-            const cooldown = 400;
+            const cooldown = 500;
 
-            // Верхнее положение (руки выпрямлены)
             if (angle > 140) {
                 if (pushupState === 1 && (now - lastStateChangeTime > cooldown)) {
-                    // Проверка амплитуды: плечи должны были реально сместиться вниз-вверх в кадре
-                    let verticalAmplitude = shoulderYBottom - shoulderYTop;
-                    
-                    // Если амплитуда достаточна (настоящее отжимание, а не взмахи сидя)
-                    if (verticalAmplitude > 0.04) {
-                        pushupState = 0;
-                        lastStateChangeTime = now;
-                        triggerHit(15, "ОТЖИМАНИЕ! 🔥");
-                        stateText.innerText = "ВЕРХ";
-                        stateText.className = "text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded font-mono border border-emerald-800";
-                        return;
-                    }
+                    pushupState = 0;
+                    lastStateChangeTime = now;
+                    triggerHit(15, "ОТЖИМАНИЕ! 🔥");
+                    stateText.innerText = "ВЕРХ";
+                    stateText.className = "text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded font-mono border border-emerald-800";
+                    return;
                 }
                 pushupState = 0;
-                shoulderYTop = shoulderY;
                 stateText.innerText = "ВЕРХ";
                 stateText.className = "text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded font-mono border border-emerald-800";
-            } 
-            // Нижнее положение (руки согнуты)
-            else if (angle < 95) {
-                if (pushupState === 0) {
-                    shoulderYBottom = shoulderY; // Запоминаем позицию внизу
-                }
+            } else if (angle < 95) {
                 pushupState = 1;
                 stateText.innerText = "ВНИЗ";
                 stateText.className = "text-[10px] px-2 py-0.5 bg-red-950 text-red-400 rounded font-mono border border-red-800";
