@@ -17,7 +17,7 @@
         }
 
         body {
-            background: #090d16;
+            background: #070913;
             color: #f8fafc;
             overflow: hidden;
             position: fixed;
@@ -25,7 +25,6 @@
             height: 100%;
         }
 
-        /* Анимации плавающих чисел */
         @keyframes floatUp {
             0% { opacity: 1; transform: translateY(0) scale(1); }
             100% { opacity: 0; transform: translateY(-80px) scale(1.3); }
@@ -39,26 +38,6 @@
             z-index: 50;
         }
 
-        /* Пульсация персонажа при тапе */
-        @keyframes punch {
-            0% { transform: scale(1); }
-            50% { transform: scale(0.88) rotate(-3deg); }
-            100% { transform: scale(1); }
-        }
-        .puch-anim {
-            animation: punch 0.15s ease-in-out;
-        }
-
-        /* Аура свечения */
-        @keyframes auraPulse {
-            0%, 100% { box-shadow: 0 0 20px rgba(234, 179, 8, 0.4), inset 0 0 15px rgba(234, 179, 8, 0.2); }
-            50% { box-shadow: 0 0 40px rgba(234, 179, 8, 0.8), inset 0 0 25px rgba(234, 179, 8, 0.4); }
-        }
-        .noob-aura {
-            animation: auraPulse 3s infinite ease-in-out;
-        }
-
-        /* Кастомный скроллбар */
         ::-webkit-scrollbar {
             width: 6px;
         }
@@ -76,16 +55,14 @@
     <!-- Верхняя панель (Хэдер) -->
     <header class="w-full bg-slate-900/90 backdrop-blur-md border-b border-slate-800 p-3 pt-safe z-30 shadow-lg">
         <div class="flex justify-between items-center max-w-md mx-auto">
-            <!-- Баланс монет -->
             <div class="flex items-center gap-2.5 bg-slate-950/80 px-3.5 py-2 rounded-2xl border border-amber-500/30 shadow-inner">
-                <span class="text-2xl filter drop-shadow">🪙</span>
+                <span class="text-2xl">🪙</span>
                 <div>
                     <div class="text-[10px] uppercase font-bold tracking-wider text-amber-400/80">Монеты</div>
                     <div id="coin-counter" class="text-lg font-black text-amber-300 tracking-tight">0</div>
                 </div>
             </div>
 
-            <!-- Доход в секунду -->
             <div class="flex items-center gap-2 bg-slate-950/80 px-3 py-2 rounded-2xl border border-blue-500/30">
                 <span class="text-xl">⚡</span>
                 <div>
@@ -95,7 +72,6 @@
             </div>
         </div>
 
-        <!-- Полоса эволюции -->
         <div class="max-w-md mx-auto mt-2.5">
             <div class="flex justify-between items-center text-xs font-semibold mb-1">
                 <span id="header-form-name" class="text-slate-300 truncate max-w-[200px]">1. Обычный нуб</span>
@@ -107,18 +83,12 @@
         </div>
     </header>
 
-    <!-- Мемный баф оповещение -->
-    <div id="meme-buff-banner" class="hidden absolute top-24 left-1/2 -translate-x-1/2 z-40 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-1.5 rounded-full text-xs font-black shadow-lg animate-bounce border border-white/30">
-        🔥 МЕМНЫЙ БУСТ! x3 на <span id="meme-buff-timer">10</span> сек!
-    </div>
-
     <!-- Основной контент (Вкладки) -->
     <main class="flex-1 relative overflow-hidden max-w-md w-full mx-auto pb-20">
 
         <!-- ВКЛАДКА 1: КЛИКЕР -->
         <div id="tab-clicker" class="tab-content flex flex-col h-full justify-between p-4 items-center">
             
-            <!-- Инфо синергии тапа -->
             <div class="w-full flex justify-between items-center px-2">
                 <div class="bg-slate-900/60 backdrop-blur border border-slate-800 px-3 py-1 rounded-xl text-xs font-semibold text-slate-300">
                     Сила тапа: <span id="tap-power-display" class="text-amber-400 font-black">+1</span>
@@ -128,62 +98,25 @@
                 </div>
             </div>
 
-            <!-- Центральный персонаж -->
-            <div class="relative flex items-center justify-center my-auto w-64 h-64">
-                <!-- Светящаяся аура -->
-                <div id="noob-aura-bg" class="absolute inset-4 rounded-full noob-aura bg-gradient-to-tr from-amber-500/20 via-purple-500/20 to-blue-500/20 blur-xl"></div>
-                
-                <!-- Кликабельная область нуба -->
-                <div id="click-target" class="relative z-10 w-52 h-52 flex flex-col items-center justify-center cursor-pointer transition-transform duration-75 active:scale-95 group">
-                    <!-- Кастомный векторный аватар нуба -->
-                    <div id="noob-avatar-container" class="w-44 h-44 rounded-full bg-gradient-to-b from-slate-800 to-slate-950 border-4 border-amber-500/60 shadow-2xl flex items-center justify-center relative overflow-hidden group-hover:border-amber-400 transition-colors">
-                        <!-- Элементы лица/костюма нуба через SVG -->
-                        <svg id="noob-svg" class="w-32 h-32 drop-shadow-lg" viewBox="0 0 100 100">
-                            <!-- Базовое тело/голова -->
-                            <circle cx="50" cy="55" r="32" fill="#facc15" />
-                            <circle cx="50" cy="55" r="30" fill="url(#skin-grad)" />
-                            <!-- Глаза -->
-                            <ellipse cx="40" cy="48" rx="5" ry="7" fill="#0f172a" />
-                            <ellipse cx="60" cy="48" rx="5" ry="7" fill="#0f172a" />
-                            <circle cx="42" cy="46" r="2" fill="#fff" />
-                            <circle cx="62" cy="46" r="2" fill="#fff" />
-                            <!-- Рот -->
-                            <path d="M 42 62 Q 50 68 58 62" stroke="#0f172a" stroke-width="3" fill="none" stroke-linecap="round" />
-                            <!-- Аксессуар (очки/кепка/корона) -->
-                            <g id="noob-accessory">
-                                <!-- Обычные очки -->
-                                <rect x="33" y="42" width="14" height="10" rx="2" fill="#3b82f6" />
-                                <rect x="53" y="42" width="14" height="10" rx="2" fill="#3b82f6" />
-                                <line x1="47" y1="46" x2="53" y2="46" stroke="#3b82f6" stroke-width="3" />
-                            </g>
-                            <defs>
-                                <radialGradient id="skin-grad" cx="50%" cy="30%" r="70%">
-                                    <stop offset="0%" stop-color="#fef08a" />
-                                    <stop offset="100%" stop-color="#eab308" />
-                                </radialGradient>
-                            </defs>
-                        </svg>
-                    </div>
-                </div>
+            <!-- Центр: Canvas 2D Рендер персонажа -->
+            <div class="relative flex items-center justify-center my-auto w-72 h-72 cursor-pointer" id="click-target">
+                <canvas id="gameCanvas" width="280" height="280" class="drop-shadow-2xl"></canvas>
             </div>
 
-            <!-- Название текущей формы под персонажем -->
             <div class="text-center mb-2">
                 <div id="current-form-title" class="text-lg font-black bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-400 bg-clip-text text-transparent">
                     Обычный нуб
                 </div>
-                <div class="text-xs text-slate-400 font-medium mt-0.5">Тапай по персонажу для фарма!</div>
+                <div class="text-xs text-slate-400 font-medium mt-0.5">Тапай по персонажу!</div>
             </div>
         </div>
 
-        <!-- ВКЛАДКА 2: МАГАЗИН УЛУЧШЕНИЙ -->
+        <!-- ВКЛАДКА 2: МАГАЗИН -->
         <div id="tab-shop" class="tab-content hidden flex flex-col h-full p-4 overflow-y-auto">
             <h2 class="text-xl font-black mb-3 text-amber-400 flex items-center gap-2">
                 <span>🛒</span> Магазин улучшений
             </h2>
-            <div id="shop-items-container" class="flex flex-col gap-3 pb-16">
-                <!-- Рендерится через JS -->
-            </div>
+            <div id="shop-items-container" class="flex flex-col gap-3 pb-16"></div>
         </div>
 
         <!-- ВКЛАДКА 3: ЭВОЛЮЦИЯ -->
@@ -191,10 +124,8 @@
             <h2 class="text-xl font-black mb-1 text-purple-400 flex items-center gap-2">
                 <span>🧬</span> Эволюция нуба
             </h2>
-            <p class="text-xs text-slate-400 mb-3">Открывай новые мощные формы по мере заработка монет!</p>
-            <div id="evolution-list-container" class="flex flex-col gap-3 pb-16">
-                <!-- Рендерится через JS -->
-            </div>
+            <p class="text-xs text-slate-400 mb-3">Открывай новые формы по мере заработка монет!</p>
+            <div id="evolution-list-container" class="flex flex-col gap-3 pb-16"></div>
         </div>
 
         <!-- ВКЛАДКА 4: ДОСТИЖЕНИЯ -->
@@ -202,32 +133,28 @@
             <h2 class="text-xl font-black mb-3 text-cyan-400 flex items-center gap-2">
                 <span>🏆</span> Достижения
             </h2>
-            <div id="achievements-list-container" class="flex flex-col gap-3 pb-16">
-                <!-- Рендерится через JS -->
-            </div>
+            <div id="achievements-list-container" class="flex flex-col gap-3 pb-16"></div>
         </div>
 
-        <!-- ВКЛАДКА 5: СТАТИСТИКА И НАСТРОЙКИ -->
+        <!-- ВКЛАДКА 5: СТАТИСТИКА -->
         <div id="tab-stats" class="tab-content hidden flex flex-col h-full p-4 overflow-y-auto">
             <h2 class="text-xl font-black mb-3 text-emerald-400 flex items-center gap-2">
                 <span>📊</span> Статистика и бонус
             </h2>
 
-            <!-- Ежедневный бонус блок -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4 shadow-lg">
                 <div class="flex items-center justify-between mb-2">
                     <div>
                         <div class="font-bold text-sm text-slate-200">🎁 Ежедневный бонус</div>
                         <div class="text-xs text-slate-400">Бесплатные монеты каждые 24 часа</div>
                     </div>
-                    <button id="daily-bonus-btn" onclick="claimDailyBonus()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-lg transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button id="daily-bonus-btn" onclick="claimDailyBonus()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-lg transition active:scale-95 disabled:opacity-50">
                         Получить
                     </button>
                 </div>
-                <div id="daily-timer" class="text-xs text-emerald-400 font-semibold">Доступно прямо сейчас!</div>
+                <div id="daily-timer" class="text-xs text-emerald-400 font-semibold">Доступно!</div>
             </div>
 
-            <!-- Статистика -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4 space-y-3">
                 <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Игровая статистика</div>
                 <div class="flex justify-between text-sm">
@@ -243,19 +170,14 @@
                     <span id="stat-total-crits" class="font-bold text-red-400">0</span>
                 </div>
                 <div class="flex justify-between text-sm">
-                    <span class="text-slate-400">Открыто форм нуба:</span>
-                    <span id="stat-unlocked-forms" class="font-bold text-purple-400">1 / 10</span>
+                    <span class="text-slate-400">Открыто форм:</span>
+                    <span id="stat-unlocked-forms" class="font-bold text-purple-400">1 / 4</span>
                 </div>
             </div>
 
-            <!-- Кнопки управления данными -->
             <div class="flex gap-3 pb-16">
-                <button onclick="saveGame()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 py-3 rounded-xl font-bold text-xs border border-slate-700 transition active:scale-95">
-                    💾 Сохранить
-                </button>
-                <button onclick="resetGame()" class="flex-1 bg-red-950/40 hover:bg-red-900/50 text-red-400 py-3 rounded-xl font-bold text-xs border border-red-900/50 transition active:scale-95">
-                    ⚠️ Сбросить
-                </button>
+                <button onclick="saveGame()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 py-3 rounded-xl font-bold text-xs border border-slate-700 transition active:scale-95">💾 Сохранить</button>
+                <button onclick="resetGame()" class="flex-1 bg-red-950/40 hover:bg-red-900/50 text-red-400 py-3 rounded-xl font-bold text-xs border border-red-900/50 transition active:scale-95">⚠️ Сбросить</button>
             </div>
         </div>
 
@@ -287,21 +209,17 @@
         </div>
     </nav>
 
-    <!-- Модальное уведомление об эволюции -->
+    <!-- Модальное окно эволюции -->
     <div id="evolution-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-gradient-to-b from-slate-900 to-slate-950 border-2 border-amber-500/60 rounded-3xl p-6 max-w-xs w-full text-center shadow-2xl animate-bounce">
             <div class="text-4xl mb-2">🎉</div>
             <div class="text-xl font-black text-amber-400 mb-1">ЭВОЛЮЦИЯ!</div>
-            <div id="modal-form-desc" class="text-sm text-slate-300 mb-4">Вы открыли новую форму нуба!</div>
-            <button onclick="closeEvolutionModal()" class="w-full bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-black py-3 rounded-2xl shadow-lg active:scale-95 transition">
-                КРУТО!
-            </button>
+            <div id="modal-form-desc" class="text-sm text-slate-300 mb-4">Новая форма разблокирована!</div>
+            <button onclick="closeEvolutionModal()" class="w-full bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-black py-3 rounded-2xl shadow-lg active:scale-95 transition">КРУТО!</button>
         </div>
     </div>
 
-    <!-- Игровой скрипт -->
     <script>
-        // Игровое состояние
         let game = {
             coins: 0,
             totalCoinsEarned: 0,
@@ -320,130 +238,146 @@
             soundEnabled: true
         };
 
-        // Конфиг форм нуба (10 форм)
+        // 4 основные формы из концепта
         const NOOB_FORMS = [
-            { id: 0, name: "1. Обычный нуб", cost: 0, color: "#facc15", svgColor: "#facc15", acc: '<rect x="33" y="42" width="14" height="10" rx="2" fill="#3b82f6"/><rect x="53" y="42" width="14" height="10" rx="2" fill="#3b82f6"/><line x1="47" y1="46" x2="53" y2="46" stroke="#3b82f6" stroke-width="3"/>' },
-            { id: 1, name: "2. Нуб в очках", cost: 500, color: "#3b82f6", svgColor: "#60a5fa", acc: '<polygon points="30,45 50,35 70,45 50,55" fill="#ef4444" />' },
-            { id: 2, name: "3. Качок-нуб", cost: 5000, color: "#f97316", svgColor: "#ea580c", acc: '<rect x="35" y="40" width="30" height="8" rx="4" fill="#ffffff" /><circle cx="35" cy="44" r="5" fill="#334155"/><circle cx="65" cy="44" r="5" fill="#334155"/>' },
-            { id: 3, name: "4. Нуб-горилла", cost: 25000, color: "#a855f7", svgColor: "#9333ea", acc: '<path d="M 35 35 Q 50 20 65 35" stroke="#ffffff" stroke-width="4" fill="none" />' },
-            { id: 4, name: "5. Нуб-демон", cost: 100000, color: "#ef4444", svgColor: "#dc2626", acc: '<polygon points="35,38 30,25 42,35" fill="#b91c1c"/><polygon points="65,38 70,25 58,35" fill="#b91c1c"/>' },
-            { id: 5, name: "6. Кибер-нуб", cost: 500000, color: "#06b6d4", svgColor: "#0891b2", acc: '<path d="M 30 45 L 70 45" stroke="#22d3ee" stroke-width="4" /><circle cx="50" cy="45" r="4" fill="#f43f5e" class="animate-ping"/>' },
-            { id: 6, name: "7. Нуб-дракон", cost: 2000000, color: "#10b981", svgColor: "#059669", acc: '<path d="M 40 33 L 50 20 L 60 33 Z" fill="#fbbf24"/>' },
-            { id: 7, name: "8. Золотой нуб", cost: 10000000, color: "#fbbf24", svgColor: "#f59e0b", acc: '<circle cx="50" cy="35" r="8" fill="#fef08a"/><circle cx="50" cy="35" r="4" fill="#eab308"/>' },
-            { id: 8, name: "9. Космический нуб", cost: 50000000, color: "#6366f1", svgColor: "#4f46e5", acc: '<ellipse cx="50" cy="45" rx="25" ry="8" fill="none" stroke="#a5b4fc" stroke-width="3" transform="rotate(-15 50 45)"/>' },
-            { id: 9, name: "10. Император нубов", cost: 200000000, color: "#ec4899", svgColor: "#db2777", acc: '<polygon points="38,36 44,20 50,30 56,20 62,36" fill="#fbbf24"/>' }
+            { id: 0, name: "1. Обычный нуб", cost: 0, type: "normal", color: "#facc15" },
+            { id: 1, name: "2. Нуб-Горилла", cost: 5000, type: "gorilla", color: "#9333ea" },
+            { id: 2, name: "3. Нуб-Демон", cost: 100000, type: "demon", color: "#dc2626" },
+            { id: 3, name: "4. Золотой Император", cost: 1000000, type: "emperor", color: "#fbbf24" }
         ];
 
-        // Конфиг улучшений магазина
         const SHOP_ITEMS = [
-            { id: 'tapPower', name: 'Железный палец', desc: '+1 монета за каждый тап', baseCost: 15, costMult: 1.5, getLevel: () => game.tapPowerLevel, setLevel: (v) => game.tapPowerLevel = v, getEffect: (lvl) => `+${1 + lvl} талик` }, { id: 'brain', name: 'Мозг нуба', desc: 'Ускоряет мыслительный процесс', baseCost: 100, costMult: 1.6, getLevel: () => game.brainLevel, setLevel: (v) => game.brainLevel = v, getEffect: (lvl) => `+${(lvl * 0.5).toFixed(1)}/сек` },
-            { id: 'bot', name: 'Нубо-бот', desc: 'Автоматически кликает за вас', baseCost: 500, costMult: 1.7, getLevel: () => game.botLevel, setLevel: (v) => game.botLevel = v, getEffect: (lvl) => `+${lvl * 2}/сек` }, { id: 'doubleTap', name: 'Двойной тап', desc: 'Удваивает силу всех нажатий', baseCost: 2000, costMult: 2.2, getLevel: () => game.doubleTapLevel, setLevel: (v) => game.doubleTapLevel = v, getEffect: (lvl) => `x${Math.pow(2, lvl)} тапы` },
-            { id: 'autoClicker', name: 'Авто-кликер', desc: 'Мощный механизм кликов', baseCost: 10000, costMult: 2.1, getLevel: () => game.autoClickerLevel, setLevel: (v) => game.autoClickerLevel = v, getEffect: (lvl) => `+${lvl * 10}/сек` }, { id: 'multiplier', name: 'Множитель дохода', desc: 'Множит весь получаемый доход', baseCost: 50000, costMult: 2.5, getLevel: () => game.multiplierLevel, setLevel: (v) => game.multiplierLevel = v, getEffect: (lvl) => `x${1 + lvl * 0.5}` },
-            { id: 'megaUpgrade', name: 'Мега-прокачка', desc: 'Имбовое улучшение нуба', baseCost: 250000, costMult: 3.0, getLevel: () => game.megaUpgradeLevel, setLevel: (v) => game.megaUpgradeLevel = v, getEffect: (lvl) => `+${lvl * 50}/сек` } ];  // Конфиг достижений const ACHIEVEMENTS = [ { id: 'taps_100', name: 'Первые шаги', desc: 'Сделайте 100 тапов', check: () => game.totalTaps >= 100, reward: 500 }, { id: 'taps_1000', name: 'Мастер тапов', desc: 'Сделайте 1000 тапов', check: () => game.totalTaps >= 1000, reward: 5000 }, { id: 'coins_10k', name: 'Богатей', desc: 'Заработайте 10,000 монет', check: () => game.totalCoinsEarned >= 10000, reward: 2500 }, { id: 'coins_1m', name: 'Нуб-миллионер', desc: 'Заработайте 1,000,000 монет', check: () => game.totalCoinsEarned >= 1000000, reward: 100000 }, { id: 'forms_5', name: 'Эволюционер', desc: 'Откройте 5 форм нуба', check: () => game.unlockedForms.length >= 5, reward: 50000 } ];  let memeBuffActive = false; let memeBuffTimerLeft = 0;  // Web Audio API синтезатор звуков const audioCtx = new (window.AudioContext \vert{}\vert{} window.webkitAudioContext)(); function playSound(type) { if (!game.soundEnabled) return; try { if (audioCtx.state === 'suspended') audioCtx.resume(); const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.connect(gain); gain.connect(audioCtx.destination);  if (type === 'tap') { osc.frequency.setValueAtTime(400, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.05); gain.gain.setValueAtTime(0.15, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05); osc.start(); osc.stop(audioCtx.currentTime + 0.05); } else if (type === 'crit') { osc.frequency.setValueAtTime(600, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1); gain.gain.setValueAtTime(0.3, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1); osc.start(); osc.stop(audioCtx.currentTime + 0.1); } else if (type === 'buy') { osc.frequency.setValueAtTime(300, audioCtx.currentTime); osc.frequency.setValueAtTime(500, audioCtx.currentTime + 0.08); gain.gain.setValueAtTime(0.2, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2); osc.start(); osc.stop(audioCtx.currentTime + 0.2); } else if (type === 'evolve') { osc.frequency.setValueAtTime(200, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(1000, audioCtx.currentTime + 0.4); gain.gain.setValueAtTime(0.3, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4); osc.start(); osc.stop(audioCtx.currentTime + 0.4); } } catch(e) {} }  // Вычисление силы тапа function getTapPower() { let base = 1 + game.tapPowerLevel; let multiplier = Math.pow(2, game.doubleTapLevel); let total = base * multiplier; if (memeBuffActive) total *= 3; let multUpgrade = 1 + (game.multiplierLevel * 0.5); return Math.floor(total * multUpgrade); }  // Вычисление дохода в секунду function getCPS() { let baseCPS = (game.brainLevel * 0.5) + (game.botLevel * 2) + (game.autoClickerLevel * 10) + (game.megaUpgradeLevel * 50); let multUpgrade = 1 + (game.multiplierLevel * 0.5); let total = baseCPS * multUpgrade; if (memeBuffActive) total *= 3; return total; }  // Клик по персонажу document.getElementById('click-target').addEventListener('click', (e) => { const rect = e.currentTarget.getBoundingClientRect(); const x = e.clientX - rect.left; const y = e.clientY - rect.top;  let isCrit = Math.random() < 0.1; // 10\% шанс крита let power = getTapPower(); if (isCrit) { power *= 5; game.totalCrits++; playSound('crit'); showCritIndicator(); } else { playSound('tap'); }  game.coins += power; game.totalCoinsEarned += power; game.totalTaps++;  // Анимация тапа персонажа const target = document.getElementById('click-target'); target.classList.remove('puch-anim'); void target.offsetWidth; target.classList.add('puch-anim');  // Всплывающая надпись showFloatingText(`+${power}`, x + rect.left, y + rect.top, isCrit ? '#ef4444' : '#fbbf24');
+            { id: 'tapPower', name: 'Железный палец', desc: '+1 монета за тап', baseCost: 15, costMult: 1.5, getLevel: () => game.tapPowerLevel, setLevel: (v) => game.tapPowerLevel = v, getEffect: (lvl) => `+${1 + lvl}` },
+            { id: 'brain', name: 'Мозг нуба', desc: 'Улучшает мышление', baseCost: 100, costMult: 1.6, getLevel: () => game.brainLevel, setLevel: (v) => game.brainLevel = v, getEffect: (lvl) => `+${(lvl * 0.5).toFixed(1)}/сек` },
+            { id: 'bot', name: 'Нубо-бот', desc: 'Авто-кликер помощник', baseCost: 500, costMult: 1.7, getLevel: () => game.botLevel, setLevel: (v) => game.botLevel = v, getEffect: (lvl) => `+${lvl * 2}/сек` },
+            { id: 'doubleTap', name: 'Двойной тап', desc: 'Удваивает силу тапа', baseCost: 2000, costMult: 2.2, getLevel: () => game.doubleTapLevel, setLevel: (v) => game.doubleTapLevel = v, getEffect: (lvl) => `x${Math.pow(2, lvl)}` },
+            { id: 'autoClicker', name: 'Авто-механизм', desc: 'Мощный сбор монет', baseCost: 10000, costMult: 2.1, getLevel: () => game.autoClickerLevel, setLevel: (v) => game.autoClickerLevel = v, getEffect: (lvl) => `+${lvl * 10}/сек` },
+            { id: 'multiplier', name: 'Множитель', desc: 'Множит весь доход', baseCost: 50000, costMult: 2.5, getLevel: () => game.multiplierLevel, setLevel: (v) => game.multiplierLevel = v, getEffect: (lvl) => `x${1 + lvl * 0.5}` },
+            { id: 'megaUpgrade', name: 'Мега-прокачка', desc: 'Имбовое улучшение', baseCost: 250000, costMult: 3.0, getLevel: () => game.megaUpgradeLevel, setLevel: (v) => game.megaUpgradeLevel = v, getEffect: (lvl) => `+${lvl * 50}/сек` }
+        ];
 
-            checkUnlocks();
-            updateUI();
-        });
+        const ACHIEVEMENTS = [
+            { id: 'taps_100', name: 'Первые шаги', desc: '100 тапов', check: () => game.totalTaps >= 100, reward: 500 },
+            { id: 'taps_1000', name: 'Мастер', desc: '1000 тапов', check: () => game.totalTaps >= 1000, reward: 5000 },
+            { id: 'coins_10k', name: 'Богатей', desc: '10,000 монет', check: () => game.totalCoinsEarned >= 10000, reward: 2500 },
+            { id: 'coins_1m', name: 'Миллионер', desc: '1,000,000 монет', check: () => game.totalCoinsEarned >= 1000000, reward: 100000 }
+        ];
 
-        function showCritIndicator() {
-            const ind = document.getElementById('crit-indicator');
-            ind.classList.remove('hidden');
-            setTimeout(() => ind.classList.add('hidden'), 600);
+        // Web Audio API
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(type) {
+            if (!game.soundEnabled) return;
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                if (type === 'tap') {
+                    osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.05);
+                    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.05);
+                } else if (type === 'crit') {
+                    osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+                } else if (type === 'buy') {
+                    osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+                    osc.frequency.setValueAtTime(500, audioCtx.currentTime + 0.08);
+                    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+                }
+            } catch(e) {}
         }
 
-        function showFloatingText(text, x, y, color) {
-            const el = document.createElement('div');
-            el.className = 'floating-text text-lg';
-            el.style.left = `${x}px`; el.style.top = `${y}px`;
-            el.style.color = color;
-            el.innerText = text;
-            document.body.appendChild(el);
-            setTimeout(() => el.remove(), 800);
+        // Canvas 2D Рендеринг персонажей
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        let animTime = 0;
+        let scaleAnim = 1;
+
+        function getTapPower() {
+            let base = 1 + game.tapPowerLevel;
+            let multiplier = Math.pow(2, game.doubleTapLevel);
+            let total = base * multiplier;
+            let multUpgrade = 1 + (game.multiplierLevel * 0.5);
+            return Math.floor(total * multUpgrade);
         }
 
-        // Переключение вкладок
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.getElementById(`tab-${tabId}`).classList.remove('hidden');  document.querySelectorAll('.nav-btn').forEach(btn => { btn.classList.remove('text-amber-400'); btn.classList.add('text-slate-400'); if(btn.dataset.tab === tabId) { btn.classList.add('text-amber-400'); btn.classList.remove('text-slate-400'); } });  if(tabId === 'shop') renderShop(); if(tabId === 'evolution') renderEvolution(); if(tabId === 'achievements') renderAchievements(); if(tabId === 'stats') updateStatsUI(); }  // Рендер магазина function renderShop() { const container = document.getElementById('shop-items-container'); container.innerHTML = '';  SHOP_ITEMS.forEach(item => { let lvl = item.getLevel(); let cost = Math.floor(item.baseCost * Math.pow(item.costMult, lvl)); let canAfford = game.coins >= cost;  const card = document.createElement('div'); card.className = `bg-slate-900 border ${canAfford ? 'border-slate-800' : 'border-slate-900'} rounded-2xl p-3.5 flex items-center justify-between shadow-md`;
-                card.innerHTML = `
-                    <div class="flex-1 pr-3">
-                        <div class="flex items-center gap-2 mb-0.5">
-                            <span class="font-bold text-sm text-slate-200">${item.name}</span>
-                            <span class="text-[10px] bg-slate-800 px-2 py-0.5 rounded-md text-amber-400 font-bold">ур. ${lvl}</span>
-                        </div>
-                        <div class="text-xs text-slate-400 mb-1">${item.desc}</div>
-                        <div class="text-xs font-bold text-blue-400">Эффект: ${item.getEffect(lvl)}</div>
-                    </div>
-                    <button onclick="buyUpgrade('${item.id}')" class="px-4 py-2.5 rounded-xl font-bold text-xs shadow-lg transition active:scale-95 ${canAfford ? 'bg-amber-500 hover:bg-amber-400 text-slate-950' : 'bg-slate-800 text-slate-500 cursor-not-allowed'}">
-                        🪙 ${cost.toLocaleString()}
-                    </button>
-                `;
-                container.appendChild(card);
-            });
-        }
-
-        function buyUpgrade(id) {
-            const item = SHOP_ITEMS.find(i => i.id === id);
-            let lvl = item.getLevel();
-            let cost = Math.floor(item.baseCost * Math.pow(item.costMult, lvl));
-
-            if (game.coins >= cost) {
-                game.coins -= cost;
-                item.setLevel(lvl + 1);
-                playSound('buy');
-                renderShop();
-                updateUI();
-            }
-        }
-
-        // Рендер эволюции
-        function renderEvolution() {
-            const container = document.getElementById('evolution-list-container');
-            container.innerHTML = '';
-
-            let currentFormIdx = getCurrentFormIndex();
-
-            NOOB_FORMS.forEach((form, idx) => {
-                let isUnlocked = game.unlockedForms.includes(idx);
-                let isCurrent = idx === currentFormIdx;
-
-                const card = document.createElement('div');
-                card.className = `border rounded-2xl p-3.5 flex items-center gap-3.5 ${isCurrent ? 'bg-amber-500/10 border-amber-500/50' : isUnlocked ? 'bg-slate-900 border-slate-800' : 'bg-slate-950/50 border-slate-900 opacity-60'}`;
-                card.innerHTML = `
-                    <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl" style="background: ${form.color}20; border: 2px solid${form.color}">
-                        👶
-                    </div>
-                    <div class="flex-1">
-                        <div class="flex items-center gap-2">
-                            <span class="font-bold text-sm text-slate-200">${form.name}</span>${isCurrent ? '<span class="text-[10px] bg-amber-500 text-slate-950 font-black px-2 py-0.5 rounded">АКТИВНА</span>' : ''}
-                        </div>
-                        <div class="text-xs text-slate-400 mt-0.5">
-                            ${isUnlocked ? 'Открыто' : `Требуется: ${form.cost.toLocaleString()} монет`}
-                        </div>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
+        function getCPS() {
+            let baseCPS = (game.brainLevel * 0.5) + (game.botLevel * 2) + (game.autoClickerLevel * 10) + (game.megaUpgradeLevel * 50);
+            let multUpgrade = 1 + (game.multiplierLevel * 0.5);
+            return baseCPS * multUpgrade;
         }
 
         function getCurrentFormIndex() {
             let idx = 0;
             for (let i = 0; i < NOOB_FORMS.length; i++) {
-                if (game.totalCoinsEarned >= NOOB_FORMS[i].cost) {
-                    idx = i;
-                }
+                if (game.totalCoinsEarned >= NOOB_FORMS[i].cost) idx = i;
             }
             return idx;
         }
 
-        function checkUnlocks() {
-            let currentIdx = getCurrentFormIndex();
-            if (!game.unlockedForms.includes(currentIdx)) {
-                game.unlockedForms.push(currentIdx);
-                playSound('evolve');
-                showEvolutionModal(NOOB_FORMS[currentIdx].name);
-            }
-        }
+        // Отрисовка персонажа на Canvas
+        function drawCharacter() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            animTime += 0.05;
+            if (scaleAnim > 1) scaleAnim -= 0.05;
 
-        function showEvolutionModal(formName) {
-            document.getElementById('modal-form-desc').innerText = `Вы достигли нового уровня и разблокировали форму: ${formName}!`; document.getElementById('evolution-modal').classList.remove('hidden'); }  function closeEvolutionModal() { document.getElementById('evolution-modal').classList.add('hidden'); }  // Рендер достижений function renderAchievements() { const container = document.getElementById('achievements-list-container'); container.innerHTML = '';  ACHIEVEMENTS.forEach(ach => { let isCompleted = game.achievements[ach.id] \vert{}\vert{} ach.check(); if(isCompleted && !game.achievements[ach.id]) { game.achievements[ach.id] = true; game.coins += ach.reward; }  const card = document.createElement('div'); card.className = `bg-slate-900 border ${
+            ctx.save();
+            ctx.translate(canvas.width / 2, canvas.height / 2 + 10);
+            ctx.scale(scaleAnim, scaleAnim);
+
+            let formIdx = getCurrentFormIndex();
+            let form = NOOB_FORMS[formIdx];
+
+            let breath = Math.sin(animTime) * 3;
+
+            if (form.type === 'normal') {
+                // 1. Обычный нуб (Желтая голова, синяя рубашка, зеленые штаны)
+                // Тело (Синяя рубашка)
+                ctx.fillStyle = '#3b82f6';
+                ctx.fillRect(-30, 0 + breath, 60, 65);
+                // Штаны
+                ctx.fillStyle = '#10b981';
+                ctx.fillRect(-26, 65 + breath, 22, 50);
+                ctx.fillRect(4, 65 + breath, 22, 50);
+                // Руки
+                ctx.fillStyle = '#facc15';
+                ctx.fillRect(-52, 5 + breath, 18, 55);
+                ctx.fillRect(34, 5 + breath, 18, 55);
+                // Голова
+                ctx.fillStyle = '#eab308';
+                ctx.fillRect(-35, -55 + breath, 70, 60);
+                // Глаза и язык (как на референсе)
+                ctx.fillStyle = '#000';
+                ctx.beginPath(); ctx.arc(-15, -30 + breath, 6, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(15, -35 + breath, 6, 0, Math.PI*2); ctx.fill();
+                // Язык
+                ctx.fillStyle = '#ef4444';
+                ctx.beginPath(); ctx.arc(5, -10 + breath, 12, 0, Math.PI); ctx.fill();
+                // Корона нуба
+                ctx.fillStyle = '#fbbf24';
+                ctx.beginPath();
+                ctx.moveTo(-20, -60 + breath); ctx.lineTo(-25, -78 + breath); ctx.lineTo(-10, -68 + breath);
+                ctx.lineTo(0, -82 + breath); ctx.lineTo(10, -68 + breath); ctx.lineTo(25, -78 + breath);
+                ctx.lineTo(20, -60 + breath); ctx.closePath(); ctx.fill();
+
+            } else if (form.type === 'gorilla') {
+                // 2. Нуб-Горилла (Мощные плечи, дубина)
+                ctx.fillStyle = '#1e293b';
+                ctx.fillRect(-45, -10 + breath, 90, 75);
+                // Дубина в руке
+                ctx.fillStyle = '#78350f';
+                ctx.fillRect(45, -20 + breath, 14, 80);
+                // Голова
+                ctx.fillStyle = '#ca8a04';
+                ctx.fillRect(-40, -65 + breath, 80, 60);
+                ctx.fillStyle = '#000';
+                ctx
