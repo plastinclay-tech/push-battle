@@ -206,9 +206,8 @@
                         countdown--;
                     } else {
                         clearInterval(prepInterval);
-                        isReadyTofight = true;
                         isReadyToFight = true;
-                        statusMsg.innerText = "🔥 Примите упор лёжа!";
+                        statusMsg.innerText = "🔥 Бой идёт! Отжимайтесь!";
                         document.getElementById("poseStateText").innerText = "ВЕРХ";
                     }
                 }, 1000);
@@ -237,49 +236,16 @@
                 const rightElbow = landmarks[14];
                 const leftWrist = landmarks[15];
                 const rightWrist = landmarks[16];
-                const leftHip = landmarks[23];
-                const rightHip = landmarks[24];
 
+                // Проверяем видимость ключевых суставов рук и плеч
                 const isVisible = leftShoulder && rightShoulder && leftElbow && rightElbow && leftWrist && rightWrist &&
                                   leftShoulder.visibility > 0.3 && rightShoulder.visibility > 0.3;
 
                 if (isVisible) {
-                    // ЖЕСТКИЙ АНТИ-ЧИТ ПО УГЛУ ТОРСА (Плечи -> Бёдра)
-                    // Если бёдра видны, проверяем угол наклона тела относительно камеры на полу.
-                    if (leftHip && rightHip && leftHip.visibility > 0.2 && rightHip.visibility > 0.2) {
-                        const shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
-                        const hipMidY = (leftHip.y + rightHip.y) / 2;
-                        
-                        const shoulderMidX = (leftShoulder.x + rightShoulder.x) / 2;
-                        const hipMidX = (leftHip.x + rightHip.x) / 2;
-
-                        // Считаем угол тела: если человек сидит, вертикальная разница (Y) между плечами и тазом большая.
-                        // В упоре лёжа тело вытянуто горизонтально вдоль экрана.
-                        const deltaY = Math.abs(hipMidY - shoulderMidY);
-                        const deltaX = Math.abs(hipMidX - shoulderMidX);
-                        const bodyAngle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
-
-                        // Если угол больше 42 градусов — человек сидит или стоит вертикально!
-                        if (bodyAngle > 42) {
-                            document.getElementById("statusMsg").innerText = "⚠️ СЯДЬТЕ / ЛЯГТЕ В УПОР ЛЁЖА!";
-                            document.getElementById("poseStateText").innerText = "СИДИТ/СТОИТ";
-                            pushupState = 0;
-                            canvasCtx.restore();
-                            return;
-                        }
-                    } else {
-                        // Если бёдер совсем не видно (слишком близко лицо/плечи) — блокируем
-                        document.getElementById("statusMsg").innerText = "⚠️ ОТОЙДИТЕ НАЗАД (ВИДИМОСТЬ ТЕЛА)";
-                        document.getElementById("poseStateText").innerText = "НЕТ ТЕЛА";
-                        pushupState = 0;
-                        canvasCtx.restore();
-                        return;
-                    }
-
                     document.getElementById("statusMsg").innerText = "🔥 Бой идёт! Отжимайтесь!";
                     
-                    // Рисуем каркас
-                    drawFullBodySkeleton(landmarks);
+                    // Рисуем красивый сетчатый каркас (как в референсе)
+                    drawSkeletonMesh(leftShoulder, rightShoulder, leftElbow, rightElbow, leftWrist, rightWrist);
 
                     const leftAngle = calculateAngle(leftShoulder, leftElbow, leftWrist);
                     const rightAngle = calculateAngle(rightShoulder, rightElbow, rightWrist);
@@ -304,21 +270,21 @@
             return angle;
         }
 
-        function drawFullBodySkeleton(lm) {
-            const color = pushupState === 1 ? "#ef4444" : "#a855f7";
+        // Отрисовка скелетной сетки (линия плеч, рук и узловые суставы)
+        function drawSkeletonMesh(ls, rs, le, re, lw, rw) {
+            const color = pushupState === 1 ? "#ef4444" : "#a855f7"; // Красный внизу, фиолетовый вверху
 
             const connections = [
-                [lm[11], lm[12]], // Плечи
-                [lm[11], lm[13]], [lm[13], lm[15]], // Левая рука
-                [lm[12], lm[14]], [lm[14], lm[16]], // Правая рука
-                [lm[11], lm[23]], [lm[12], lm[24]], [lm[23], lm[24]] // Торс
+                [ls, rs], // Линия плеч
+                [ls, le], [le, lw], // Левая рука
+                [rs, re], [re, rw]  // Правая рука
             ];
 
             canvasCtx.lineWidth = 4;
             canvasCtx.strokeStyle = color;
 
             connections.forEach(([p1, p2]) => {
-                if (p1 && p2 && p1.visibility > 0.2 && p2.visibility > 0.2) {
+                if (p1 && p2) {
                     canvasCtx.beginPath();
                     canvasCtx.moveTo(p1.x * canvasElement.width, p1.y * canvasElement.height);
                     canvasCtx.lineTo(p2.x * canvasElement.width, p2.y * canvasElement.height);
@@ -326,11 +292,11 @@
                 }
             });
 
-            [11, 12, 13, 14, 15, 16, 23, 24].forEach(idx => {
-                let p = lm[idx];
-                if (p && p.visibility > 0.2) {
+            // Узловые точки суставов (желтые кругляшки)
+            [ls, rs, le, re, lw, rw].forEach(p => {
+                if (p) {
                     canvasCtx.beginPath();
-                    canvasCtx.arc(p.x * canvasElement.width, p.y * canvasElement.height, 5, 0, 2 * Math.PI);
+                    canvasCtx.arc(p.x * canvasElement.width, p.y * canvasElement.height, 6, 0, 2 * Math.PI);
                     canvasCtx.fillStyle = "#eab308";
                     canvasCtx.fill();
                 }
@@ -340,7 +306,7 @@
         function processPushupState(angle) {
             const now = Date.now();
             const stateText = document.getElementById("poseStateText");
-            const cooldown = 400;
+            const cooldown = 350;
 
             if (angle > 125) {
                 if (pushupState === 1 && (now - lastStateChangeTime > cooldown)) {
