@@ -144,11 +144,12 @@
                 locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
             });
 
+            // Повышаем порог уверенности, чтобы ИИ не цеплялся за подушки, пледы и лицо
             pose.setOptions({
                 modelComplexity: 1,
                 smoothLandmarks: true,
-                minDetectionConfidence: 0.3,
-                minTrackingConfidence: 0.3
+                minDetectionConfidence: 0.6,
+                minTrackingConfidence: 0.6
             });
 
             pose.onResults(onPoseResults);
@@ -207,7 +208,7 @@
                     } else {
                         clearInterval(prepInterval);
                         isReadyToFight = true;
-                        statusMsg.innerText = "🔥 Лягте в упор лёжа!";
+                        statusMsg.innerText = "🔥 Примите упор лёжа на полу!";
                         document.getElementById("poseStateText").innerText = "ВЕРХ";
                     }
                 }, 1000);
@@ -234,18 +235,21 @@
                 const le = lm[13], re = lm[14]; // Локти
                 const lw = lm[15], rw = lm[16]; // Запястья
 
+                // Требуем высокую уверенность распознавания ключевых точек
                 const isVisible = ls && rs && le && re && lw && rw &&
-                                  ls.visibility > 0.15 && rs.visibility > 0.15;
+                                  ls.visibility > 0.5 && rs.visibility > 0.5 &&
+                                  le.visibility > 0.5 && re.visibility > 0.5 &&
+                                  lw.visibility > 0.5 && rw.visibility > 0.5;
 
                 if (isVisible) {
-                    // ЗАЩИТА ОТ МАХОВ РУКАМИ СИДЯ:
-                    // В упоре лёжа (телефон на полу снизу) кисти рук (wrists) находятся ниже плеч по оси Y.
-                    // Когда пользователь сидит перед камерой, кисти выше или на уровне плеч.
-                    const wristsAreOnFloor = (lw.y > ls.y + 0.03) && (rw.y > rs.y + 0.03);
+                    // ЗАЩИТА ОТ ЛЕЖАНИЯ НА ДИВАНЕ:
+                    // В упоре лёжа (телефон на полу снизу) кисти рук (wrists) должны быть ниже или на уровне плеч.
+                    // Если человек лежит на диване и держит руки у лица/груди, кисти окажутся выше плеч (lw.y < ls.y).
+                    const isProperPushupStance = (lw.y >= ls.y - 0.05) && (rw.y >= rs.y - 0.05);
 
-                    if (!wristsAreOnFloor) {
-                        document.getElementById("statusMsg").innerText = "⚠️ РУКИ ДОЛЖНЫ БЫТЬ НА ПОЛУ!";
-                        document.getElementById("poseStateText").innerText = "НЕ ПЛАНКА";
+                    if (!isProperStance) {
+                        document.getElementById("statusMsg").innerText = "⚠️ ПРИНИМИТЕ УПОР ЛЁЖА НА ПОЛУ!";
+                        document.getElementById("poseStateText").innerText = "НЕ ПОЗИЦИЯ";
                         pushupState = 0;
                         drawReferenceSkeleton(lm);
                         canvasCtx.restore();
@@ -254,7 +258,7 @@
 
                     document.getElementById("statusMsg").innerText = "🔥 Бой идёт! Отжимайтесь!";
 
-                    // Отрисовка скелета
+                    // Отрисовка стабильного скелета
                     drawReferenceSkeleton(lm);
 
                     const leftAngle = calculateAngle(ls, le, lw);
@@ -263,7 +267,7 @@
 
                     processPushupState(avgAngle);
                 } else {
-                    document.getElementById("statusMsg").innerText = "⚠️ Держите руки и плечи в кадре";
+                    document.getElementById("statusMsg").innerText = "⚠️ Отойдите, чтобы плечи и руки были видны";
                     document.getElementById("poseStateText").innerText = "ПОИСК";
                 }
             } else if (isReadyToFight) {
@@ -298,7 +302,7 @@
             canvasCtx.strokeStyle = color;
 
             connections.forEach(([p1, p2]) => {
-                if (p1 && p2 && (p1.visibility === undefined || p1.visibility > 0.15) && (p2.visibility === undefined || p2.visibility > 0.15)) {
+                if (p1 && p2 && p1.visibility > 0.5 && p2.visibility > 0.5) {
                     canvasCtx.beginPath();
                     canvasCtx.moveTo(p1.x * canvasElement.width, p1.y * canvasElement.height);
                     canvasCtx.lineTo(p2.x * canvasElement.width, p2.y * canvasElement.height);
@@ -311,7 +315,7 @@
 
             joints.forEach(idx => {
                 let p = lm[idx];
-                if (p && (p.visibility === undefined || p.visibility > 0.15)) {
+                if (p && p.visibility > 0.5) {
                     canvasCtx.beginPath();
                     canvasCtx.arc(p.x * canvasElement.width, p.y * canvasElement.height, 5, 0, 2 * Math.PI);
                     canvasCtx.fillStyle = "#eab308";
@@ -323,9 +327,9 @@
         function processPushupState(angle) {
             const now = Date.now();
             const stateText = document.getElementById("poseStateText");
-            const cooldown = 380;
+            const cooldown = 400;
 
-            if (angle > 120) {
+            if (angle > 125) {
                 if (pushupState === 1 && (now - lastStateChangeTime > cooldown)) {
                     pushupState = 0;
                     lastStateChangeTime = now;
@@ -337,7 +341,7 @@
                 pushupState = 0;
                 stateText.innerText = "ВЕРХ";
                 stateText.className = "text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded font-mono border border-emerald-800";
-            } else if (angle < 98) {
+            } else if (angle < 95) {
                 pushupState = 1;
                 stateText.innerText = "ВНИЗ";
                 stateText.className = "text-[10px] px-2 py-0.5 bg-red-950 text-red-400 rounded font-mono border border-red-800";
