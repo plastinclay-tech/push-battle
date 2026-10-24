@@ -70,7 +70,7 @@
             <div class="w-24 h-24 bg-red-950/40 rounded-full flex items-center justify-center border-2 border-red-600/50 mb-3 shadow-[0_0_20px_rgba(239,68,68,0.2)]">
                 <span class="text-5xl">👹</span>
             </div>
-            <p id="statusMsg" class="text-xs text-slate-400 font-medium max-w-[240px]">Нажмите «Камера» для старта</p>
+            <p id="statusMsg" class="text-xs text-slate-400 font-medium max-w-[240px]">Нажмите «Камера» и встаньте в упор лёжа</p>
         </div>
 
         <!-- Видеопоток с камеры -->
@@ -118,18 +118,18 @@
         let pose = null;
         let camera = null;
         let webcamRunning = false;
+        let isPoseLocked = false; // Флаг успешного захвата позы
         
         let videoElement = document.getElementById("webcam");
         let canvasElement = document.getElementById("outputCanvas");
         let canvasCtx = canvasElement.getContext("2d");
 
-        let pushupState = 0; // 0 = ВЕРХ, 1 = ВНИЗ
+        let pushupState = 0; 
         let lastStateChangeTime = 0;
 
-        // Инициализация библиотеки Pose
         function initPose() {
             if (typeof Pose === "undefined") {
-                document.getElementById("statusMsg").innerText = "Ошибка загрузки библиотеки. Проверьте сеть/VPN.";
+                document.getElementById("statusMsg").innerText = "Ошибка загрузки библиотеки. Проверьте сеть.";
                 return;
             }
 
@@ -140,8 +140,8 @@
             pose.setOptions({
                 modelComplexity: 1,
                 smoothLandmarks: true,
-                minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5
+                minDetectionConfidence: 0.6,
+                minTrackingConfidence: 0.6
             });
 
             pose.onResults(onPoseResults);
@@ -151,12 +151,15 @@
         async function toggleCamera() {
             const btn = document.getElementById("camBtn");
             const bossAvatar = document.getElementById("bossAvatar");
+            const statusMsg = document.getElementById("statusMsg");
 
             if (webcamRunning) {
                 webcamRunning = false;
+                isPoseLocked = false;
                 if (camera) { camera.stop(); }
                 videoElement.classList.add("opacity-0");
                 bossAvatar.classList.remove("opacity-0");
+                statusMsg.innerText = "Камера выключена";
                 btn.innerHTML = "<span>📷</span> Камера";
                 document.getElementById("poseStateText").innerText = "ОТКЛ";
                 return;
@@ -177,9 +180,15 @@
 
                 await camera.start();
                 webcamRunning = true;
+                isPoseLocked = false;
+                
                 videoElement.classList.remove("opacity-0");
                 bossAvatar.classList.add("opacity-0");
                 btn.innerHTML = "<span>⏹️</span> Стоп";
+                
+                statusMsg.innerText = "🔍 Поиск упора лёжа...";
+                document.getElementById("poseStateText").innerText = "ПОИСК";
+
             } catch (err) {
                 console.error("Ошибка доступа к камере:", err);
                 alert("Не удалось включить камеру. Разрешите доступ к камере в браузере.");
@@ -198,19 +207,44 @@
             if (results.poseLandmarks) {
                 const landmarks = results.poseLandmarks;
                 
-                // Рассчитываем углы в локтях
-                const leftAngle = calculateAngle(landmarks[11], landmarks[13], landmarks[15]);
-                const rightAngle = calculateAngle(landmarks[12], landmarks[14], landmarks[16]);
-                const avgAngle = (leftAngle + rightAngle) / 2;
+                // Проверяем видимость ключевых точек (плечи 11, 12 и запястья 15, 16)
+                const leftShoulder = landmarks[11];
+                const rightShoulder = landmarks[12];
+                const leftWrist = landmarks[15];
+                const rightWrist = landmarks[16];
 
-                // Отрисовка скелета рук
-                drawSkeletonLine(landmarks[11], landmarks[13]);
-                drawSkeletonLine(landmarks[13], landmarks[15]);
-                drawSkeletonLine(landmarks[12], landmarks[14]);
-                drawSkeletonLine(landmarks[14], landmarks[16]);
+                const isVisible = leftShoulder && rightShoulder && leftWrist && rightWrist &&
+                                  leftShoulder.visibility > 0.5 && rightShoulder.visibility > 0.5 &&
+                                  leftWrist.visibility > 0.5 && rightWrist.visibility > 0.5;
 
-                processPushupState(avgAngle);
+                if (isVisible) {
+                    // Захват успешен!
+                    if (!isPoseLocked) {
+                        isPoseLocked = true;
+                        document.getElementById("statusMsg").innerText = "🎯 Цель захвачена! Бой начался!";
+                    }
+
+                    const leftAngle = calculateAngle(leftShoulder, landmarks[13], leftWrist);
+                    const rightAngle = calculateAngle(rightShoulder, landmarks[14], rightWrist);
+                    const avgAngle = (leftAngle + rightAngle) / 2;
+
+                    // Отрисовка скелета
+                    drawSkeletonLine(leftShoulder, landmarks[13]);
+                    drawSkeletonLine(landmarks[13], leftWrist);
+                    drawSkeletonLine(rightShoulder, landmarks[14]);
+                    drawSkeletonLine(landmarks[14], rightWrist);
+
+                    // Считаем отжимания
+                    processPushupState(avgAngle);
+                } else {
+                    // Тело есть, но руки/плечи не в кадре
+                    isPoseLocked = false;
+                    document.getElementById("statusMsg").innerText = "⚠️ Отойдите или покажите плечи и руки полностью";
+                    document.getElementById("poseStateText").innerText = "В КАДРЕ?";
+                }
             } else {
+                isPoseLocked = false;
+                document.getElementById("statusMsg").innerText = "📱 Поставьте телефон на пол и примите упор лёжа";
                 document.getElementById("poseStateText").innerText = "НЕТ ТЕЛА";
             }
             canvasCtx.restore();
@@ -229,8 +263,9 @@
             canvasCtx.beginPath();
             canvasCtx.moveTo(p1.x * canvasElement.width, p1.y * canvasElement.height);
             canvasCtx.lineTo(p2.x * canvasElement.width, p2.y * canvasElement.height);
-            canvasCtx.strokeStyle = pushupState === 1 ? "#ef4444" : "#22c55e";
-            canvasCtx.lineWidth = 4;
+            // Если поза захвачена — цвет зелёный/красный в зависимости от фазы, если нет — синий
+            canvasCtx.strokeStyle = isPoseLocked ? (pushupState === 1 ? "#ef4444" : "#22c55e") : "#3b82f6";
+            canvasCtx.lineWidth = 5;
             canvasCtx.stroke();
         }
 
