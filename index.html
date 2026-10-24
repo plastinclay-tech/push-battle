@@ -125,10 +125,9 @@
         let canvasElement = document.getElementById("outputCanvas");
         let canvasCtx = canvasElement.getContext("2d");
 
-        // Строгий конечный автомат (FSM)
-        let pushupState = 'UP'; // 'UP' -> 'DESCENDING' -> 'BOTTOM' -> 'ASCENDING'
+        let pushupState = 'UP';
         let frameCounter = 0;
-        const requiredFrames = 3; // Стабильность кадров для защиты от дребезга и качания телефона
+        const requiredFrames = 3;
 
         const bosses = [
             { name: "Сквернословный Орк", emoji: "👹", hp: 100 },
@@ -137,24 +136,29 @@
         ];
 
         function initPose() {
-            if (typeof Pose === "undefined") {
-                document.getElementById("statusMsg").innerText = "Ошибка загрузки библиотеки. Проверьте сеть.";
-                return;
+            try {
+                if (typeof Pose === "undefined") {
+                    document.getElementById("statusMsg").innerText = "Ошибка: библиотека Pose не загружена. Проверьте интернет.";
+                    return;
+                }
+
+                pose = new Pose({
+                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+                });
+
+                pose.setOptions({
+                    modelComplexity: 1,
+                    smoothLandmarks: true,
+                    minDetectionConfidence: 0.5,
+                    minTrackingConfidence: 0.5
+                });
+
+                pose.onResults(onPoseResults);
+                document.getElementById("statusMsg").innerText = "ИИ готов! Нажмите «Камера»";
+            } catch (e) {
+                console.error("initPose error:", e);
+                document.getElementById("statusMsg").innerText = "Ошибка инициализации ИИ: " + e.message;
             }
-
-            pose = new Pose({
-                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
-            });
-
-            pose.setOptions({
-                modelComplexity: 1,
-                smoothLandmarks: true,
-                minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5
-            });
-
-            pose.onResults(onPoseResults);
-            document.getElementById("statusMsg").innerText = "ИИ готов! Нажмите «Камера»";
         }
 
         async function toggleCamera() {
@@ -165,7 +169,9 @@
             if (webcamRunning) {
                 webcamRunning = false;
                 isReadyToFight = false;
-                if (camera) { camera.stop(); }
+                if (camera) { 
+                    try { await camera.stop(); } catch(e) {}
+                }
                 videoElement.classList.add("opacity-0");
                 bossAvatar.classList.remove("opacity-0");
                 statusMsg.innerText = "Камера выключена";
@@ -180,7 +186,11 @@
                 camera = new Camera(videoElement, {
                     onFrame: async () => {
                         if (webcamRunning && pose) {
-                            await pose.send({ image: videoElement });
+                            try {
+                                await pose.send({ image: videoElement });
+                            } catch (err) {
+                                console.error("Pose send error:", err);
+                            }
                         }
                     },
                     width: 640,
@@ -217,8 +227,10 @@
                 }, 1000);
 
             } catch (err) {
-                console.error("Ошибка доступа к камере:", err);
-                alert("Не удалось включить камеру. Разрешите доступ к камере в браузере.");
+                console.error("Ошибка доступа к камере:", err, err.name, err.message);
+                webcamRunning = false;
+                statusMsg.innerText = "Ошибка камеры: " + (err.message || "Нет доступа");
+                alert("Не удалось включить камеру. Проверьте разрешения в браузере.");
             }
         }
 
@@ -247,7 +259,6 @@
                                   leftShoulder.visibility > 0.3 && rightShoulder.visibility > 0.3;
 
                 if (isVisible) {
-                    // НАДЁЖНАЯ ПРОВЕРКА ПЛАНКИ (ЗАЩИТА ОТ СИДЕНИЯ И СТОЯНИЯ)
                     let isPlank = false;
                     if (leftHip && rightHip && leftHip.visibility > 0.2 && rightHip.visibility > 0.2) {
                         const shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
@@ -259,10 +270,8 @@
                         const deltaX = Math.abs(hipMidX - shoulderMidX);
                         const bodyAngle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
 
-                        // Если угол корпуса больше 42 градусов — человек сидит или стоит вертикально
                         isPlank = bodyAngle < 42;
                     } else {
-                        // Если бёдра скрыты близко к камере, проверяем горизонтальность линии плеч
                         const shoulderTilt = Math.abs(leftShoulder.y - rightShoulder.y);
                         const shoulderWidth = Math.abs(leftShoulder.x - rightShoulder.x);
                         isPlank = shoulderTilt < 0.18 && shoulderWidth > 0.25;
@@ -279,15 +288,12 @@
 
                     document.getElementById("statusMsg").innerText = "🔥 Бой идёт! Отжимайтесь!";
                     
-                    // Рисуем скелет
                     drawSkeletonMesh(leftShoulder, rightShoulder, leftElbow, rightElbow, leftWrist, rightWrist);
 
-                    // Вычисляем углы обеих рук
                     const leftAngle = calculateAngle(leftShoulder, leftElbow, leftWrist);
                     const rightAngle = calculateAngle(rightShoulder, rightElbow, rightWrist);
                     const avgAngle = (leftAngle + rightAngle) / 2;
 
-                    // Выполняем логику конечного автомата (FSM)
                     processFSM(avgAngle);
                 } else {
                     document.getElementById("statusMsg").innerText = "⚠️ Держите плечи и руки в кадре";
@@ -311,9 +317,9 @@
             const color = pushupState === 'BOTTOM' || pushupState === 'DESCENDING' ? "#ef4444" : "#a855f7";
 
             const connections = [
-                [ls, rs], // Линия плеч
-                [ls, le], [le, lw], // Левая рука
-                [rs, re], [re, rw]  // Правая рука
+                [ls, rs],
+                [ls, le], [le, lw],
+                [rs, re], [re, rw]
             ];
 
             canvasCtx.lineWidth = 4;
@@ -338,7 +344,6 @@
             });
         }
 
-        // СТРОГИЙ КОНЕЧНЫЙ АВТОМАТ (FSM) С ЗАЩИТОЙ ОТ ДРЕБЕЗГА КАДРОВ
         function processFSM(avgAngle) {
             const stateText = document.getElementById("poseStateText");
 
@@ -347,7 +352,7 @@
                     stateText.innerText = "ВЕРХ";
                     stateText.className = "text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded font-mono border border-emerald-800";
                     
-                    if (avgAngle < 110) { // Начало сгибания рук
+                    if (avgAngle < 110) {
                         frameCounter++;
                         if (frameCounter >= requiredFrames) {
                             pushupState = 'DESCENDING';
@@ -362,13 +367,13 @@
                     stateText.innerText = "ОПУСКАНИЕ";
                     stateText.className = "text-[10px] px-2 py-0.5 bg-amber-950 text-amber-400 rounded font-mono border border-amber-800";
                     
-                    if (avgAngle <= 95) { // Достигли нижней точки
+                    if (avgAngle <= 95) {
                         frameCounter++;
                         if (frameCounter >= requiredFrames) {
                             pushupState = 'BOTTOM';
                             frameCounter = 0;
                         }
-                    } else if (avgAngle > 125) { // Вернулись вверх без выполнения
+                    } else if (avgAngle > 125) {
                         pushupState = 'UP';
                         frameCounter = 0;
                     } else {
@@ -380,7 +385,7 @@
                     stateText.innerText = "НИЗ";
                     stateText.className = "text-[10px] px-2 py-0.5 bg-red-950 text-red-400 rounded font-mono border border-red-800";
                     
-                    if (avgAngle > 105) { // Начало подъема
+                    if (avgAngle > 105) {
                         frameCounter++;
                         if (frameCounter >= requiredFrames) {
                             pushupState = 'ASCENDING';
@@ -395,14 +400,14 @@
                     stateText.innerText = "ПОДЪЁМ";
                     stateText.className = "text-[10px] px-2 py-0.5 bg-blue-950 text-blue-400 rounded font-mono border border-blue-800";
                     
-                    if (avgAngle >= 125) { // Полное выпрямление рук (завершение цикла!)
+                    if (avgAngle >= 125) {
                         frameCounter++;
                         if (frameCounter >= requiredFrames) {
                             pushupState = 'UP';
                             frameCounter = 0;
                             triggerHit(15, "ОТЖИМАНИЕ! 🔥");
                         }
-                    } else if (avgAngle < 90) { // Снова опустились вниз
+                    } else if (avgAngle < 90) {
                         pushupState = 'BOTTOM';
                         frameCounter = 0;
                     } else {
@@ -413,8 +418,6 @@
         }
 
         function triggerHit(damageAmount = 10, customText = null) {
-            if (!isReadyToFight) return;
-
             currentHp -= damageAmount;
             if (currentHp < 0) currentHp = 0;
 
@@ -438,4 +441,8 @@
 
                     document.getElementById("bossName").innerText = bosses[bossIndex].emoji + " " + bosses[bossIndex].name;
                     document.getElementById("bossLevelText").innerText = "Босс уровня " + bossLevel;
-                    documen
+                    document.getElementById("bossMaxHpText").innerText = "/ " + maxHp + " HP";
+                    
+                    updateBossUI();
+                    isReadyToFight = true;
+                    document.getElementById("statusMsg").innerT
