@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Push Battle RPG</title>
+    <title>Pushup Legends</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Библиотеки MediaPipe Pose -->
@@ -44,16 +44,16 @@
 </head>
 <body class="flex flex-col justify-between min-h-[100dvh] p-3 select-none">
 
-    <!-- ВЕРХНЯЯ ЧАСТЬ: ИНФОРМАЦИЯ О БОССЕ -->
-    <div class="w-full bg-slate-900/90 border border-slate-800 rounded-xl p-3 shadow-xl backdrop-blur-md shrink-0">
+    <!-- ВЕРХНЯЯ ПАНЕЛЬ: БОСС И ЗДОРОВЬЕ -->
+    <div id="battleHeader" class="w-full bg-slate-900/90 border border-slate-800 rounded-xl p-3 shadow-xl backdrop-blur-md shrink-0">
         <div class="flex justify-between items-center mb-1.5">
             <div>
-                <h1 id="bossName" class="text-base font-bold tracking-wide text-red-400">👹 Сквернословный Орк</h1>
-                <p id="bossLevelText" class="text-[11px] text-slate-400">Босс уровня 1</p>
+                <h1 id="bossName" class="text-base font-bold tracking-wide text-red-400">🌿 Терновый Слизень</h1>
+                <p id="bossLevelText" class="text-[11px] text-slate-400">Этап 2 — Солнечный луг</p>
             </div>
             <div class="text-right">
-                <span id="bossHpText" class="text-lg font-black text-red-500">100</span>
-                <span id="bossMaxHpText" class="text-[11px] text-slate-500">/ 100 HP</span>
+                <span id="bossHpText" class="text-lg font-black text-red-500">66</span>
+                <span id="bossMaxHpText" class="text-[11px] text-slate-500">/ 66 HP</span>
             </div>
         </div>
 
@@ -63,71 +63,97 @@
         </div>
     </div>
 
-    <!-- ЦЕНТРАЛЬНАЯ ЧАСТЬ: ВИДЕО КАМЕРЫ И АВАТАР БОССА -->
-    <div id="gameContainer" class="relative flex-1 my-2.5 flex items-center justify-center bg-slate-950 rounded-xl overflow-hidden border border-slate-800 shadow-inner min-h-[220px]">
-        <!-- Аватар босса -->
+    <!-- ЦЕНТРАЛЬНАЯ ЧАСТЬ: ВИДЕО И АВАТАР -->
+    <div id="gameContainer" class="relative flex-1 my-2 flex items-center justify-center bg-slate-950 rounded-xl overflow-hidden border border-slate-800 shadow-inner min-h-[260px]">
+        <!-- Аватар босса (в режиме ожидания/подготовки) -->
         <div id="bossAvatar" class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center z-10 transition-opacity duration-300">
-            <div id="bossEmoji" class="w-24 h-24 bg-red-950/40 rounded-full flex items-center justify-center border-2 border-red-600/50 mb-3 shadow-[0_0_20px_rgba(239,68,68,0.2)]">
-                <span class="text-5xl">👹</span>
+            <div class="w-24 h-24 bg-emerald-950/40 rounded-full flex items-center justify-center border-2 border-emerald-600/50 mb-3 shadow-[0_0_20px_rgba(16,185,129,0.2)]">
+                <span class="text-5xl">🟢</span>
             </div>
-            <p id="statusMsg" class="text-xs text-slate-400 font-medium max-w-[240px]">Камера запускается...</p>
+            <p id="statusMsg" class="text-xs text-slate-300 font-medium max-w-[240px]">Запуск камеры...</p>
         </div>
 
-        <!-- Видеопоток с камеры -->
+        <!-- Видео с камеры -->
         <video id="webcam" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover transform -scale-x-100 opacity-0 transition-opacity duration-500"></video>
         
-        <!-- Холст для скелета ИИ -->
+        <!-- Холст скелета (зелёная сетка как на референсе) -->
         <canvas id="outputCanvas" class="absolute inset-0 w-full h-full object-cover transform -scale-x-100 pointer-events-none z-20"></canvas>
 
-        <!-- Контейнер для вылетающего урона -->
+        <!-- Всплывающий урон -->
         <div id="floatingContainer" class="absolute inset-0 pointer-events-none z-30 overflow-hidden"></div>
     </div>
 
-    <!-- НИЖНЯЯ ПАНЕЛЬ: СЧЁТЧИК И УПРАВЛЕНИЕ -->
-    <div class="w-full bg-slate-900/90 border border-slate-800 rounded-xl p-3 shadow-xl backdrop-blur-md flex flex-col gap-2 shrink-0">
+    <!-- ЭКРАН ПОБЕДЫ (СКРЫТ ПО УМОЛЧАНИЮ) -->
+    <div id="victoryScreen" class="absolute inset-0 bg-slate-950/95 z-50 flex flex-col items-center justify-center p-6 text-center hidden">
+        <div class="w-20 h-20 bg-amber-500/20 rounded-full flex items-center justify-center border-2 border-amber-500 mb-4 animate-bounce">
+            <span class="text-4xl">🏆</span>
+        </div>
+        <h2 class="text-2xl font-black text-amber-400 mb-1">ПОБЕДА</h2>
+        <p id="victoryTitle" class="text-sm text-slate-300 mb-4">Цветущий Грибник повержен!</p>
         
-        <!-- Статистика отжиманий -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 w-full max-w-xs mb-4 flex justify-around text-center">
+            <div>
+                <p id="vicPushups" class="text-lg font-black text-amber-400">3</p>
+                <p class="text-[10px] text-slate-400 uppercase">Отжимания</p>
+            </div>
+            <div>
+                <p id="vicTime" class="text-lg font-black text-blue-400">0:16</p>
+                <p class="text-[10px] text-slate-400 uppercase">Время</p>
+            </div>
+            <div>
+                <p id="vicXp" class="text-lg font-black text-emerald-400">+76</p>
+                <p class="text-[10px] text-slate-400 uppercase">XP</p>
+            </div>
+        </div>
+
+        <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3 w-full max-w-xs mb-6 text-left">
+            <p class="text-[10px] text-slate-400 uppercase mb-1">Добыча — Обычный</p>
+            <p class="text-sm font-bold text-indigo-300">✨ Счастливый камешек</p>
+            <p class="text-[11px] text-slate-500">АТК 0 / ЗАЩ 0 / КРИТ 3%</p>
+        </div>
+
+        <button onclick="nextQuest()" class="w-full max-w-xs bg-gradient-to-r from-amber-500 to-yellow-600 font-bold text-slate-950 py-3 rounded-xl shadow-lg active:scale-95 transition-all text-sm">
+            Продолжить квест
+        </button>
+    </div>
+
+    <!-- НИЖНЯЯ ПАНЕЛЬ СЧЁТЧИКА -->
+    <div class="w-full bg-slate-900/90 border border-slate-800 rounded-xl p-3 shadow-xl backdrop-blur-md flex flex-col gap-2 shrink-0">
         <div class="flex justify-between items-center bg-slate-950/60 px-3 py-2 rounded-lg border border-slate-800/80">
             <div class="flex items-center gap-2">
                 <span class="text-lg">💪</span>
-                <span class="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">Отжимания</span>
-            </div>
-            <div class="flex items-center gap-2">
                 <span id="pushupCount" class="text-xl font-black text-amber-400">0</span>
-                <span id="poseStateText" class="text-[10px] px-2 py-0.5 bg-slate-800 rounded text-slate-400 font-mono">ОЖИДАНИЕ</span>
+                <span class="text-[11px] text-slate-400">повторов</span>
             </div>
+            <button id="calibBtn" onclick="startCalibration()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition-all shadow">
+                🎯 Калибровка
+            </button>
         </div>
-
-        <!-- Кнопки управления -->
-        <div class="grid grid-cols-2 gap-2">
-            <button id="calibrationBtn" onclick="startCalibration()" class="bg-gradient-to-r from-amber-600 to-yellow-600 active:scale-95 text-white font-bold py-2.5 px-3 rounded-lg shadow-md transition-all text-xs flex items-center justify-center gap-1.5">
-                <span>🎯</span> Калибровка
-            </button>
-            <button onclick="manualHit()" class="bg-gradient-to-r from-red-600 to-rose-600 active:scale-95 text-white font-bold py-2.5 px-3 rounded-lg shadow-md transition-all text-xs flex items-center justify-center gap-1.5">
-                <span>💥</span> Тест урон
-            </button>
+        <div class="text-center">
+            <span id="statusSubMsg" class="text-[11px] text-slate-400">Поставьте телефон на пол и нажмите калибровку</span>
         </div>
     </div>
 
-    <!-- ЛОГИКА ИГРЫ И AI -->
+    <!-- ЛОГИКА ИИ И ИГРЫ -->
     <script>
         let bossLevel = 1;
-        let maxHp = 100;
-        let currentHp = 100;
+        let maxHp = 66;
+        let currentHp = 66;
         let pushups = 0;
+        let startTime = null;
         
         let pose = null;
         let camera = null;
         let webcamRunning = false;
         let isReadyToFight = false;
-        
-        // Переменные калибровки
         let isCalibrating = false;
+
+        // Калибровочные переменные под конкретного пользователя
         let calibMinAngle = 180;
         let calibMaxAngle = 0;
-        let userBottomThreshold = 98;
+        let userBottomThreshold = 100;
         let userTopThreshold = 120;
-        let calibStage = 0; // 0 - верх, 1 - вниз, 2 - возврат вверх
+        let calibStage = 0; // 0 - ждем нижнюю точку, 1 - ждем верхнюю
 
         let videoElement = document.getElementById("webcam");
         let canvasElement = document.getElementById("outputCanvas");
@@ -138,16 +164,13 @@
         let smoothedAngle = 180;
 
         const bosses = [
-            { name: "Сквернословный Орк", emoji: "👹", hp: 100 },
-            { name: "Кибер-Гоблин", emoji: "👺", hp: 150 },
-            { name: "Огненный Дракон", emoji: "🐉", hp: 200 }
+            { name: "Терновый Слизень", emoji: "🟢", hp: 66, desc: "Этап 2 — Солнечный луг", loot: "Тканевые обмотки" },
+            { name: "Цветущий Грибник", emoji: "🍄", hp: 100, desc: "Этап 3 — Лесная опушка", loot: "Счастливый камешек" },
+            { name: "Огненный Голем", emoji: "🔥", hp: 150, desc: "Этап 4 — Вулканическая пещера", loot: "Угрюмый щит" }
         ];
 
         function initPose() {
-            if (typeof Pose === "undefined") {
-                document.getElementById("statusMsg").innerText = "Ошибка загрузки библиотеки Pose.";
-                return;
-            }
+            if (typeof Pose === "undefined") return;
 
             pose = new Pose({
                 locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
@@ -163,7 +186,7 @@
             pose.onResults(onPoseResults);
         }
 
-        // Автоматический запуск камеры при старте страницы
+        // Автозапуск камеры сразу при открытии страницы без лишних кнопок
         async function autoStartCamera() {
             try {
                 if (!pose) initPose();
@@ -183,12 +206,11 @@
                 
                 videoElement.classList.remove("opacity-0");
                 document.getElementById("bossAvatar").classList.add("opacity-0");
-                document.getElementById("statusMsg").innerText = "Нажмите «Калибровка» для старта!";
-                document.getElementById("poseStateText").innerText = "ГОТОВ";
+                document.getElementById("statusMsg").innerText = "Примите упор лёжа и нажмите «Калибровка»";
 
             } catch (err) {
-                console.error("Ошибка доступа к камере:", err);
-                document.getElementById("statusMsg").innerText = "Ошибка камери. Разрешите доступ.";
+                console.error("Ошибка камеры:", err);
+                alert("Разрешите доступ к камере в браузере.");
             }
         }
 
@@ -199,8 +221,11 @@
             calibMinAngle = 180;
             calibMaxAngle = 0;
             calibStage = 0;
-            document.getElementById("statusMsg").innerText = "🎯 Сделайте 1 полное отжимание!";
-            document.getElementById("poseStateText").innerText = "КАЛИБРОВКА";
+            
+            document.getElementById("statusMsg").innerText = "🎯 Сделайте 1 полное отжимание для калибровки!";
+            document.getElementById("statusSubMsg").innerText = "Опуститесь вниз и поднимитесь обратно";
+            document.getElementById("calibBtn").innerText = "Идет калибровка...";
+            document.getElementById("calibBtn").classList.add("animate-pulse", "bg-amber-600");
         }
 
         function onPoseResults(results) {
@@ -223,35 +248,31 @@
                                   ls.visibility > 0.2 && rs.visibility > 0.2;
 
                 if (isVisible) {
-                    drawReferenceSkeleton(lm);
+                    // Отрисовка фирменной зеленой сетки скелета
+                    drawGreenSkeleton(lm);
 
                     const leftAngle = calculateAngle(ls, le, lw);
                     const rightAngle = calculateAngle(rs, re, rw);
                     const rawAngle = (leftAngle + rightAngle) / 2;
 
-                    // Защита от резких скачков (тряски телефона)
-                    if (Math.abs(rawAngle - smoothedAngle) > 55 && smoothedAngle !== 180) {
-                        canvasCtx.restore();
-                        return;
-                    }
+                    // Сглаживание углов
                     smoothedAngle = smoothedAngle === 180 ? rawAngle : (smoothedAngle * 0.4 + rawAngle * 0.6);
 
-                    // Режим калибровки
+                    // Режим калибровки по 1 отжиманию
                     if (isCalibrating) {
                         processCalibration(smoothedAngle);
                         canvasCtx.restore();
                         return;
                     }
 
-                    // Боевой режим (если откалибровано)
+                    // Боевой режим после успешной калибровки
                     if (isReadyToFight) {
-                        document.getElementById("statusMsg").innerText = "🔥 Бой идёт! Отжимайтесь!";
+                        document.getElementById("statusSubMsg").innerText = "🔥 Бой идет! Отжимайтесь глубоко!";
                         processPushupState(smoothedAngle);
                     }
                 } else {
                     if (isReadyToFight) {
-                        document.getElementById("statusMsg").innerText = "⚠️ Держите руки и плечи в кадре";
-                        document.getElementById("poseStateText").innerText = "ПОИСК";
+                        document.getElementById("statusSubMsg").innerText = "⚠️ Держите руки и плечи в кадре телефона!";
                     }
                 }
             }
@@ -259,25 +280,25 @@
         }
 
         function processCalibration(angle) {
-            const statusMsg = document.getElementById("statusMsg");
-            
-            // Фиксируем минимальный и максимальный углы во время калибровочного движения
             if (angle < calibMinAngle) calibMinAngle = angle;
             if (angle > calibMaxAngle) calibMaxAngle = angle;
 
             if (calibStage === 0 && angle < 110) {
-                calibStage = 1; // Опустился вниз
-                statusMsg.innerText = "⬇️ Отлично! Теперь поднимайтесь наверх...";
+                calibStage = 1;
+                document.getElementById("statusMsg").innerText = "⬇️ Отлично! Теперь поднимайтесь вверх...";
             } else if (calibStage === 1 && angle > 120) {
-                // Калибровка завершена успешно! Вычисляем индивидуальные пороги
-                userBottomThreshold = Math.min(Math.max(calibMinAngle + 8, 85), 110);
-                userTopThreshold = Math.max(Math.min(calibMaxAngle - 8, 135), 115);
-                
+                // Успешная калибровка под индивидуальную амплитуду
+                userBottomThreshold = Math.min(Math.max(calibMinAngle + 6, 85), 110);
+                userTopThreshold = Math.max(Math.min(calibMaxAngle - 6, 135), 115);
+
                 isCalibrating = false;
                 isReadyToFight = true;
-                statusMsg.innerText = "🎉 Калибровка успешна! БИТВА НАЧАЛАСЬ!";
-                document.getElementById("poseStateText").innerText = "ВЕРХ";
-                pushupState = 0;
+                startTime = Date.now();
+
+                document.getElementById("statusMsg").innerText = "⚔️ БИТВА НАЧАЛАСЬ!";
+                document.getElementById("calibBtn").innerText = "Откалибровано ✓";
+                document.getElementById("calibBtn").classList.remove("animate-pulse", "bg-amber-600");
+                document.getElementById("calibBtn").classList.add("bg-emerald-700");
             }
         }
 
@@ -289,8 +310,9 @@
             return angle;
         }
 
-        function drawReferenceSkeleton(lm) {
-            const color = isCalibrating ? "#eab308" : (pushupState === 1 ? "#ef4444" : "#a855f7");
+        // Фирменная зелёная сетка скелета как в референсном приложении
+        function drawGreenSkeleton(lm) {
+            const color = isCalibrating ? "#eab308" : (pushupState === 1 ? "#ef4444" : "#10b981");
 
             const connections = [
                 [lm[11], lm[12]], // Плечевой пояс
@@ -303,7 +325,7 @@
                 connections.push([lm[23], lm[25]], [lm[24], lm[26]]);
             }
 
-            canvasCtx.lineWidth = 4;
+            canvasCtx.lineWidth = 3;
             canvasCtx.strokeStyle = color;
 
             connections.forEach(([p1, p2]) => {
@@ -322,8 +344,8 @@
                 let p = lm[idx];
                 if (p && (p.visibility === undefined || p.visibility > 0.2)) {
                     canvasCtx.beginPath();
-                    canvasCtx.arc(p.x * canvasElement.width, p.y * canvasElement.height, 5, 0, 2 * Math.PI);
-                    canvasCtx.fillStyle = "#eab308";
+                    canvasCtx.arc(p.x * canvasElement.width, p.y * canvasElement.height, 4, 0, 2 * Math.PI);
+                    canvasCtx.fillStyle = "#ffffff";
                     canvasCtx.fill();
                 }
             });
@@ -331,66 +353,45 @@
 
         function processPushupState(angle) {
             const now = Date.now();
-            const stateText = document.getElementById("poseStateText");
-            const cooldown = 300;
+            const cooldown = 350;
 
-            // Используем индивидуально откалиброванные пороги пользователя
             if (angle > userTopThreshold) {
                 if (pushupState === 1 && (now - lastStateChangeTime > cooldown)) {
                     pushupState = 0;
                     lastStateChangeTime = now;
-                    triggerHit(15, "ОТЖИМАНИЕ! 🔥");
-                    stateText.innerText = "ВЕРХ";
-                    stateText.className = "text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded font-mono border border-emerald-800";
+                    triggerHit(16); // Урон боссу за отжимание
                     return;
                 }
                 pushupState = 0;
-                stateText.innerText = "ВЕРХ";
-                stateText.className = "text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded font-mono border border-emerald-800";
             } else if (angle < userBottomThreshold) {
                 pushupState = 1;
-                stateText.innerText = "ВНИЗ";
-                stateText.className = "text-[10px] px-2 py-0.5 bg-red-950 text-red-400 rounded font-mono border border-red-800";
             }
         }
 
-        function triggerHit(damageAmount = 10, customText = null) {
+        function triggerHit(damageAmount) {
             currentHp -= damageAmount;
             if (currentHp < 0) currentHp = 0;
 
-            if (customText) {
-                pushups++;
-                document.getElementById("pushupCount").innerText = pushups;
-            }
+            pushups++;
+            document.getElementById("pushupCount").innerText = pushups;
 
             updateBossUI();
-            triggerEffects(customText || `-${damageAmount}`);
+            triggerEffects(`-${damageAmount}`);
 
             if (currentHp === 0) {
                 isReadyToFight = false;
-                document.getElementById("statusMsg").innerText = "🎉 ПОБЕДА! Новый босс спешит!";
-                
-                setTimeout(() => {
-                    bossLevel++;
-                    let bossIndex = (bossLevel - 1) % bosses.length;
-                    maxHp = bosses[bossIndex].hp;
-                    currentHp = maxHp;
-
-                    document.getElementById("bossName").innerText = bosses[bossIndex].emoji + " " + bosses[bossIndex].name;
-                    document.getElementById("bossLevelText").innerText = "Босс уровня " + bossLevel;
-                    document.getElementById("bossMaxHpText").innerText = "/ " + maxHp + " HP";
-                    
-                    updateBossUI();
-                    isReadyToFight = true;
-                    document.getElementById("statusMsg").innerText = "🔥 Бой продолжается!";
-                }, 1500);
+                showVictoryScreen();
             }
         }
 
         function manualHit() {
-            pushups++;
-            document.getElementById("pushupCount").innerText = pushups;
-            triggerHit(15, "-15 УДАР!");
+            if (!isReadyToFight) {
+                // Если бой еще не начат, тестовый удар тоже засчитывает калибровку
+                isReadyToFight = true;
+                startTime = Date.now();
+                document.getElementById("statusMsg").innerText = "⚔️ БИТВА НАЧАЛАСЬ!";
+            }
+            triggerHit(16);
         }
 
         function updateBossUI() {
@@ -409,16 +410,44 @@
 
             const floatCont = document.getElementById("floatingContainer");
             const dmgEl = document.createElement("div");
-            dmgEl.className = "damage-float text-amber-300 text-xl";
+            dmgEl.className = "damage-float text-red-500 text-2xl";
             dmgEl.innerText = text;
-            dmgEl.style.left = Math.random() * 60 + 20 + "%";
-            dmgEl.style.top = Math.random() * 40 + 30 + "%";
+            dmgEl.style.left = Math.random() * 50 + 25 + "%";
+            dmgEl.style.top = Math.random() * 30 + 30 + "%";
             floatCont.appendChild(dmgEl);
 
             setTimeout(() => dmgEl.remove(), 800);
         }
 
-        // Автозапуск камеры сразу при загрузке страницы
+        function showVictoryScreen() {
+            const elapsedTime = Math.round((Date.now() - startTime) / 1000);
+            const minutes = Math.floor(elapsedTime / 60);
+            const seconds = elapsedTime % 60;
+            const timeString = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+
+            document.getElementById("vicPushups").innerText = pushups;
+            document.getElementById("vicTime").innerText = timeString;
+            document.getElementById("vicXp").innerText = "+" + (pushups * 25);
+            document.getElementById("victoryTitle").innerText = bosses[(bossLevel - 1) % bosses.length].name + " повержен!";
+            document.getElementById("victoryScreen").classList.remove("hidden");
+        }
+
+        function nextQuest() {
+            bossLevel++;
+            let bIndex = (bossLevel - 1) % bosses.length;
+            maxHp = bosses[bIndex].hp;
+            currentHp = maxHp;
+
+            document.getElementById("bossName").innerText = bosses[bIndex].emoji + " " + bosses[bIndex].name;
+            document.getElementById("bossLevelText").innerText = bosses[bIndex].desc;
+            document.getElementById("bossMaxHpText").innerText = "/ " + maxHp + " HP";
+            
+            updateBossUI();
+            document.getElementById("victoryScreen").classList.add("hidden");
+            isReadyToFight = true;
+            startTime = Date.now();
+        }
+
         window.addEventListener("DOMContentLoaded", () => {
             autoStartCamera();
         });
