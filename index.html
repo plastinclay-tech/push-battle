@@ -127,8 +127,6 @@
 
         let pushupState = 0; // 0 = ВЕРХ, 1 = ВНИЗ
         let lastStateChangeTime = 0;
-        let shoulderYTop = 0;
-        let shoulderYBottom = 0;
 
         const bosses = [
             { name: "Сквернословный Орк", emoji: "👹", hp: 100 },
@@ -209,7 +207,7 @@
                     } else {
                         clearInterval(prepInterval);
                         isReadyToFight = true;
-                        statusMsg.innerText = "🔥 Лягте в упор лёжа и отжимайтесь!";
+                        statusMsg.innerText = "🔥 Бой идёт! Отжимайтесь!";
                         document.getElementById("poseStateText").innerText = "ВЕРХ";
                     }
                 }, 1000);
@@ -234,44 +232,27 @@
                 
                 const leftShoulder = landmarks[11];
                 const rightShoulder = landmarks[12];
-                const leftHip = landmarks[23];
-                const rightHip = landmarks[24];
+                const leftElbow = landmarks[13];
+                const rightElbow = landmarks[14];
                 const leftWrist = landmarks[15];
                 const rightWrist = landmarks[16];
 
-                const isVisible = leftShoulder && rightShoulder && leftHip && rightHip && leftWrist && rightWrist &&
-                                  leftShoulder.visibility > 0.4 && rightShoulder.visibility > 0.4 &&
-                                  leftHip.visibility > 0.4 && rightHip.visibility > 0.4;
+                const isVisible = leftShoulder && rightShoulder && leftElbow && rightElbow && leftWrist && rightWrist &&
+                                  leftShoulder.visibility > 0.4 && rightShoulder.visibility > 0.4;
 
                 if (isVisible) {
-                    const shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
-                    const hipMidY = (leftHip.y + rightHip.y) / 2;
-                    
-                    // СТРОГИЙ АНТИ-ЧИТ: Если пользователь сидит, расстояние по вертикали (y) между плечами и тазом большое (> 0.25)
-                    const bodyVerticalSpan = Math.abs(hipMidY - shoulderMidY);
-                    const isSittingOrStanding = bodyVerticalSpan > 0.22;
-
-                    if (isSittingOrStanding) {
-                        document.getElementById("statusMsg").innerText = "⚠️ Лягте на пол в упор лёжа!";
-                        document.getElementById("poseStateText").innerText = "ЛЯГТЕ НА ПОЛ";
-                        pushupState = 0;
-                        canvasCtx.restore();
-                        return;
-                    }
-
-                    document.getElementById("statusMsg").innerText = "🔥 Бой идёт! Отжимайтесь!";
-                    const leftAngle = calculateAngle(leftShoulder, landmarks[13], leftWrist);
-                    const rightAngle = calculateAngle(rightShoulder, landmarks[14], rightWrist);
+                    const leftAngle = calculateAngle(leftShoulder, leftElbow, leftWrist);
+                    const rightAngle = calculateAngle(rightShoulder, rightElbow, rightWrist);
                     const avgAngle = (leftAngle + rightAngle) / 2;
 
-                    drawSkeletonLine(leftShoulder, landmarks[13]);
-                    drawSkeletonLine(landmarks[13], leftWrist);
-                    drawSkeletonLine(rightShoulder, landmarks[14]);
-                    drawSkeletonLine(landmarks[14], rightWrist);
+                    drawSkeletonLine(leftShoulder, leftElbow);
+                    drawSkeletonLine(leftElbow, leftWrist);
+                    drawSkeletonLine(rightShoulder, rightElbow);
+                    drawSkeletonLine(rightElbow, rightWrist);
 
-                    processPushupState(avgAngle, shoulderMidY);
+                    processPushupState(avgAngle);
                 } else {
-                    document.getElementById("poseStateText").innerText = "ТЕЛО В КАДРЕ?";
+                    document.getElementById("poseStateText").innerText = "РУКИ В КАДРЕ?";
                 }
             } else if (isReadyToFight) {
                 document.getElementById("poseStateText").innerText = "НЕТ ТЕЛА";
@@ -297,32 +278,24 @@
             canvasCtx.stroke();
         }
 
-        function processPushupState(angle, shoulderY) {
+        function processPushupState(angle) {
             const now = Date.now();
             const stateText = document.getElementById("poseStateText");
-            const cooldown = 400;
+            const cooldown = 500;
 
             if (angle > 140) {
                 if (pushupState === 1 && (now - lastStateChangeTime > cooldown)) {
-                    let verticalAmplitude = shoulderYBottom - shoulderYTop;
-                    
-                    if (verticalAmplitude > 0.03) {
-                        pushupState = 0;
-                        lastStateChangeTime = now;
-                        triggerHit(15, "ОТЖИМАНИЕ! 🔥");
-                        stateText.innerText = "ВЕРХ";
-                        stateText.className = "text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded font-mono border border-emerald-800";
-                        return;
-                    }
+                    pushupState = 0;
+                    lastStateChangeTime = now;
+                    triggerHit(15, "ОТЖИМАНИЕ! 🔥");
+                    stateText.innerText = "ВЕРХ";
+                    stateText.className = "text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded font-mono border border-emerald-800";
+                    return;
                 }
                 pushupState = 0;
-                shoulderYTop = shoulderY;
                 stateText.innerText = "ВЕРХ";
                 stateText.className = "text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded font-mono border border-emerald-800";
             } else if (angle < 95) {
-                if (pushupState === 0) {
-                    shoulderYBottom = shoulderY;
-                }
                 pushupState = 1;
                 stateText.innerText = "ВНИЗ";
                 stateText.className = "text-[10px] px-2 py-0.5 bg-red-950 text-red-400 rounded font-mono border border-red-800";
