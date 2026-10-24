@@ -111,6 +111,14 @@
 
     <!-- ЛОГИКА ИГРЫ И AI -->
     <script>
+        // Перехват ошибок для вывода на экран (Диагностический режим)
+        window.addEventListener('error', function(event) {
+            const statusMsg = document.getElementById("statusMsg");
+            if (statusMsg) {
+                statusMsg.innerText = "❌ Ошибка: " + event.message;
+            }
+        });
+
         let bossLevel = 1;
         let maxHp = 100;
         let currentHp = 100;
@@ -135,11 +143,10 @@
             { name: "Огненный Дракон", emoji: "🐉", hp: 200 }
         ];
 
-        // Безопасная инициализация ИИ
         function initPose() {
             try {
                 if (typeof Pose === "undefined") {
-                    document.getElementById("statusMsg").innerText = "ИИ недоступен (нет сети). Нажмите «Тест урон»";
+                    document.getElementById("statusMsg").innerText = "ИИ недоступен. Тест урон работает автономно.";
                     return;
                 }
 
@@ -198,7 +205,6 @@
                     });
                     await camera.start();
                 } else {
-                    // Запасной вариант через стандартный MediaDevices API, если Camera utils заблокирован
                     const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
                     videoElement.srcObject = stream;
                     await videoElement.play();
@@ -235,7 +241,7 @@
             } catch (err) {
                 console.error("Ошибка камеры:", err);
                 webcamRunning = false;
-                statusMsg.innerText = "Ошибка доступа к камере";
+                statusMsg.innerText = "Ошибка доступа к камере: " + (err.message || "запрещено");
                 alert("Разрешите доступ к камере в настройках браузера.");
             }
         }
@@ -406,7 +412,7 @@
                         if (frameCounter >= requiredFrames) {
                             pushupState = 'UP';
                             frameCounter = 0;
-                            triggerHit(15, "ОТЖИМАНИЕ! 🔥");
+                            triggerHit(15, true); // Настоящее отжимание (увеличивает счетчик на 1)
                         }
                     } else if (avgAngle < 90) {
                         pushupState = 'BOTTOM';
@@ -418,17 +424,18 @@
             }
         }
 
-        function triggerHit(damageAmount = 10, customText = null) {
+        // Общая логика нанесения урона
+        function triggerHit(damageAmount = 10, isPushup = false) {
             currentHp -= damageAmount;
             if (currentHp < 0) currentHp = 0;
 
-            if (customText) {
+            if (isPushup) {
                 pushups++;
                 document.getElementById("pushupCount").innerText = pushups;
             }
 
             updateBossUI();
-            triggerEffects(customText || `-${damageAmount}`);
+            triggerEffects(`-${damageAmount}`);
 
             if (currentHp === 0) {
                 isReadyToFight = false;
@@ -440,7 +447,4 @@
                     maxHp = bosses[bossIndex].hp;
                     currentHp = maxHp;
 
-                    document.getElementById("bossName").innerText = bosses[bossIndex].emoji + " " + bosses[bossIndex].name;
-                    document.getElementById("bossLevelText").innerText = "Босс уровня " + bossLevel;
-                    document.getElementById("bossMaxHpText").innerText = "/ " + maxHp + " HP";
-     
+                    document.getElementById("bossName")
