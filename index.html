@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>НУБОКЛИКЕР — Мобильный хит</title>
+    <title>НУБОКЛИКЕР — Эволюция</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <style>
@@ -38,21 +38,14 @@
             z-index: 50;
         }
 
-        ::-webkit-scrollbar {
-            width: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #0f172a;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #334155;
-            border-radius: 3px;
-        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
     </style>
 </head>
 <body class="flex flex-col h-full bg-[#070913] text-slate-100">
 
-    <!-- Верхняя панель (Хэдер) -->
+    <!-- Верхняя панель -->
     <header class="w-full bg-slate-900/90 backdrop-blur-md border-b border-slate-800 p-3 pt-safe z-30 shadow-lg">
         <div class="flex justify-between items-center max-w-md mx-auto">
             <div class="flex items-center gap-2.5 bg-slate-950/80 px-3.5 py-2 rounded-2xl border border-amber-500/30 shadow-inner">
@@ -83,12 +76,11 @@
         </div>
     </header>
 
-    <!-- Основной контент (Вкладки) -->
+    <!-- Основной контент -->
     <main class="flex-1 relative overflow-hidden max-w-md w-full mx-auto pb-20">
 
         <!-- ВКЛАДКА 1: КЛИКЕР -->
         <div id="tab-clicker" class="tab-content flex flex-col h-full justify-between p-4 items-center">
-            
             <div class="w-full flex justify-between items-center px-2">
                 <div class="bg-slate-900/60 backdrop-blur border border-slate-800 px-3 py-1 rounded-xl text-xs font-semibold text-slate-300">
                     Сила тапа: <span id="tap-power-display" class="text-amber-400 font-black">+1</span>
@@ -98,7 +90,7 @@
                 </div>
             </div>
 
-            <!-- Центр: Canvas 2D Рендер персонажа -->
+            <!-- Центр: Детальный Canvas 2D персонаж -->
             <div class="relative flex items-center justify-center my-auto w-72 h-72 cursor-pointer" id="click-target">
                 <canvas id="gameCanvas" width="280" height="280" class="drop-shadow-2xl"></canvas>
             </div>
@@ -113,34 +105,26 @@
 
         <!-- ВКЛАДКА 2: МАГАЗИН -->
         <div id="tab-shop" class="tab-content hidden flex flex-col h-full p-4 overflow-y-auto">
-            <h2 class="text-xl font-black mb-3 text-amber-400 flex items-center gap-2">
-                <span>🛒</span> Магазин улучшений
-            </h2>
+            <h2 class="text-xl font-black mb-3 text-amber-400 flex items-center gap-2">🛒 Магазин улучшений</h2>
             <div id="shop-items-container" class="flex flex-col gap-3 pb-16"></div>
         </div>
 
         <!-- ВКЛАДКА 3: ЭВОЛЮЦИЯ -->
         <div id="tab-evolution" class="tab-content hidden flex flex-col h-full p-4 overflow-y-auto">
-            <h2 class="text-xl font-black mb-1 text-purple-400 flex items-center gap-2">
-                <span>🧬</span> Эволюция нуба
-            </h2>
+            <h2 class="text-xl font-black mb-1 text-purple-400 flex items-center gap-2">🧬 Эволюция нуба</h2>
             <p class="text-xs text-slate-400 mb-3">Открывай новые формы по мере заработка монет!</p>
             <div id="evolution-list-container" class="flex flex-col gap-3 pb-16"></div>
         </div>
 
         <!-- ВКЛАДКА 4: ДОСТИЖЕНИЯ -->
         <div id="tab-achievements" class="tab-content hidden flex flex-col h-full p-4 overflow-y-auto">
-            <h2 class="text-xl font-black mb-3 text-cyan-400 flex items-center gap-2">
-                <span>🏆</span> Достижения
-            </h2>
+            <h2 class="text-xl font-black mb-3 text-cyan-400 flex items-center gap-2">🏆 Достижения</h2>
             <div id="achievements-list-container" class="flex flex-col gap-3 pb-16"></div>
         </div>
 
         <!-- ВКЛАДКА 5: СТАТИСТИКА -->
         <div id="tab-stats" class="tab-content hidden flex flex-col h-full p-4 overflow-y-auto">
-            <h2 class="text-xl font-black mb-3 text-emerald-400 flex items-center gap-2">
-                <span>📊</span> Статистика и бонус
-            </h2>
+            <h2 class="text-xl font-black mb-3 text-emerald-400 flex items-center gap-2">📊 Статистика и бонус</h2>
 
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4 shadow-lg">
                 <div class="flex items-center justify-between mb-2">
@@ -148,31 +132,17 @@
                         <div class="font-bold text-sm text-slate-200">🎁 Ежедневный бонус</div>
                         <div class="text-xs text-slate-400">Бесплатные монеты каждые 24 часа</div>
                     </div>
-                    <button id="daily-bonus-btn" onclick="claimDailyBonus()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-lg transition active:scale-95 disabled:opacity-50">
-                        Получить
-                    </button>
+                    <button id="daily-bonus-btn" onclick="claimDailyBonus()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-lg transition active:scale-95 disabled:opacity-50">Получить</button>
                 </div>
                 <div id="daily-timer" class="text-xs text-emerald-400 font-semibold">Доступно!</div>
             </div>
 
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4 space-y-3">
                 <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Игровая статистика</div>
-                <div class="flex justify-between text-sm">
-                    <span class="text-slate-400">Всего тапов:</span>
-                    <span id="stat-total-taps" class="font-bold text-slate-200">0</span>
-                </div>
-                <div class="flex justify-between text-sm">
-                    <span class="text-slate-400">Заработано за всё время:</span>
-                    <span id="stat-total-coins" class="font-bold text-amber-300">0</span>
-                </div>
-                <div class="flex justify-between text-sm">
-                    <span class="text-slate-400">Критических ударов:</span>
-                    <span id="stat-total-crits" class="font-bold text-red-400">0</span>
-                </div>
-                <div class="flex justify-between text-sm">
-                    <span class="text-slate-400">Открыто форм:</span>
-                    <span id="stat-unlocked-forms" class="font-bold text-purple-400">1 / 4</span>
-                </div>
+                <div class="flex justify-between text-sm"><span class="text-slate-400">Всего тапов:</span><span id="stat-total-taps" class="font-bold text-slate-200">0</span></div>
+                <div class="flex justify-between text-sm"><span class="text-slate-400">Заработано монет:</span><span id="stat-total-coins" class="font-bold text-amber-300">0</span></div>
+                <div class="flex justify-between text-sm"><span class="text-slate-400">Критических ударов:</span><span id="stat-total-crits" class="font-bold text-red-400">0</span></div>
+                <div class="flex justify-between text-sm"><span class="text-slate-400">Открыто форм:</span><span id="stat-unlocked-forms" class="font-bold text-purple-400">1 / 4</span></div>
             </div>
 
             <div class="flex gap-3 pb-16">
@@ -180,32 +150,16 @@
                 <button onclick="resetGame()" class="flex-1 bg-red-950/40 hover:bg-red-900/50 text-red-400 py-3 rounded-xl font-bold text-xs border border-red-900/50 transition active:scale-95">⚠️ Сбросить</button>
             </div>
         </div>
-
     </main>
 
     <!-- Нижняя панель навигации -->
     <nav class="absolute bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-lg border-t border-slate-800 py-2 px-4 z-30 shadow-2xl pb-safe">
         <div class="max-w-md mx-auto flex justify-around items-center">
-            <button onclick="switchTab('clicker')" class="nav-btn flex flex-col items-center gap-1 text-amber-400" data-tab="clicker">
-                <span class="text-xl">👆</span>
-                <span class="text-[10px] font-bold">Тап</span>
-            </button>
-            <button onclick="switchTab('shop')" class="nav-btn flex flex-col items-center gap-1 text-slate-400" data-tab="shop">
-                <span class="text-xl">🛒</span>
-                <span class="text-[10px] font-bold">Магазин</span>
-            </button>
-            <button onclick="switchTab('evolution')" class="nav-btn flex flex-col items-center gap-1 text-slate-400" data-tab="evolution">
-                <span class="text-xl">🧬</span>
-                <span class="text-[10px] font-bold">Эволюция</span>
-            </button>
-            <button onclick="switchTab('achievements')" class="nav-btn flex flex-col items-center gap-1 text-slate-400" data-tab="achievements">
-                <span class="text-xl">🏆</span>
-                <span class="text-[10px] font-bold">Ачивки</span>
-            </button>
-            <button onclick="switchTab('stats')" class="nav-btn flex flex-col items-center gap-1 text-slate-400" data-tab="stats">
-                <span class="text-xl">📊</span>
-                <span class="text-[10px] font-bold">Стат</span>
-            </button>
+            <button onclick="switchTab('clicker')" class="nav-btn flex flex-col items-center gap-1 text-amber-400" data-tab="clicker"><span class="text-xl">👆</span><span class="text-[10px] font-bold">Тап</span></button>
+            <button onclick="switchTab('shop')" class="nav-btn flex flex-col items-center gap-1 text-slate-400" data-tab="shop"><span class="text-xl">🛒</span><span class="text-[10px] font-bold">Магазин</span></button>
+            <button onclick="switchTab('evolution')" class="nav-btn flex flex-col items-center gap-1 text-slate-400" data-tab="evolution"><span class="text-xl">🧬</span><span class="text-[10px] font-bold">Эволюция</span></button>
+            <button onclick="switchTab('achievements')" class="nav-btn flex flex-col items-center gap-1 text-slate-400" data-tab="achievements"><span class="text-xl">🏆</span><span class="text-[10px] font-bold">Ачивки</span></button>
+            <button onclick="switchTab('stats')" class="nav-btn flex flex-col items-center gap-1 text-slate-400" data-tab="stats"><span class="text-xl">📊</span><span class="text-[10px] font-bold">Стат</span></button>
         </div>
     </nav>
 
@@ -238,7 +192,7 @@
             soundEnabled: true
         };
 
-        // 4 основные формы из концепта
+        // 4 персонажа по вашим референсам
         const NOOB_FORMS = [
             { id: 0, name: "1. Обычный нуб", cost: 0, type: "normal", color: "#facc15" },
             { id: 1, name: "2. Нуб-Горилла", cost: 5000, type: "gorilla", color: "#9333ea" },
@@ -263,7 +217,7 @@
             { id: 'coins_1m', name: 'Миллионер', desc: '1,000,000 монет', check: () => game.totalCoinsEarned >= 1000000, reward: 100000 }
         ];
 
-        // Web Audio API
+        // Web Audio API звуки
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playSound(type) {
             if (!game.soundEnabled) return;
@@ -271,9 +225,7 @@
                 if (audioCtx.state === 'suspended') audioCtx.resume();
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                
+                osc.connect(gain); gain.connect(audioCtx.destination);
                 if (type === 'tap') {
                     osc.frequency.setValueAtTime(400, audioCtx.currentTime);
                     osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.05);
@@ -296,7 +248,7 @@
             } catch(e) {}
         }
 
-        // Canvas 2D Рендеринг персонажей
+        // Canvas 2D Рендеринг детализированных персонажей
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         let animTime = 0;
@@ -324,60 +276,22 @@
             return idx;
         }
 
-        // Отрисовка персонажа на Canvas
+        // Функция отрисовки персонажей с высокой детализацией
         function drawCharacter() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            animTime += 0.05;
-            if (scaleAnim > 1) scaleAnim -= 0.05;
+            animTime += 0.06;
+            if (scaleAnim > 1) scaleAnim -= 0.06;
 
             ctx.save();
-            ctx.translate(canvas.width / 2, canvas.height / 2 + 10);
+            ctx.translate(canvas.width / 2, canvas.height / 2 + 15);
             ctx.scale(scaleAnim, scaleAnim);
 
             let formIdx = getCurrentFormIndex();
             let form = NOOB_FORMS[formIdx];
-
-            let breath = Math.sin(animTime) * 3;
+            let breath = Math.sin(animTime) * 4;
 
             if (form.type === 'normal') {
-                // 1. Обычный нуб (Желтая голова, синяя рубашка, зеленые штаны)
-                // Тело (Синяя рубашка)
-                ctx.fillStyle = '#3b82f6';
-                ctx.fillRect(-30, 0 + breath, 60, 65);
-                // Штаны
-                ctx.fillStyle = '#10b981';
-                ctx.fillRect(-26, 65 + breath, 22, 50);
-                ctx.fillRect(4, 65 + breath, 22, 50);
-                // Руки
-                ctx.fillStyle = '#facc15';
-                ctx.fillRect(-52, 5 + breath, 18, 55);
-                ctx.fillRect(34, 5 + breath, 18, 55);
-                // Голова
-                ctx.fillStyle = '#eab308';
-                ctx.fillRect(-35, -55 + breath, 70, 60);
-                // Глаза и язык (как на референсе)
-                ctx.fillStyle = '#000';
-                ctx.beginPath(); ctx.arc(-15, -30 + breath, 6, 0, Math.PI*2); ctx.fill();
-                ctx.beginPath(); ctx.arc(15, -35 + breath, 6, 0, Math.PI*2); ctx.fill();
-                // Язык
-                ctx.fillStyle = '#ef4444';
-                ctx.beginPath(); ctx.arc(5, -10 + breath, 12, 0, Math.PI); ctx.fill();
-                // Корона нуба
-                ctx.fillStyle = '#fbbf24';
-                ctx.beginPath();
-                ctx.moveTo(-20, -60 + breath); ctx.lineTo(-25, -78 + breath); ctx.lineTo(-10, -68 + breath);
-                ctx.lineTo(0, -82 + breath); ctx.lineTo(10, -68 + breath); ctx.lineTo(25, -78 + breath);
-                ctx.lineTo(20, -60 + breath); ctx.closePath(); ctx.fill();
-
-            } else if (form.type === 'gorilla') {
-                // 2. Нуб-Горилла (Мощные плечи, дубина)
-                ctx.fillStyle = '#1e293b';
-                ctx.fillRect(-45, -10 + breath, 90, 75);
-                // Дубина в руке
-                ctx.fillStyle = '#78350f';
-                ctx.fillRect(45, -20 + breath, 14, 80);
-                // Голова
-                ctx.fillStyle = '#ca8a04';
-                ctx.fillRect(-40, -65 + breath, 80, 60);
-                ctx.fillStyle = '#000';
-                ctx
+                // 1. Обычный нуб (с высунутым языком и короной)
+                // Туловище (Синяя футболка)
+                ctx.fillStyle = '#2563eb';
+                ctx.fillRect(-3
