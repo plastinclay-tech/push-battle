@@ -98,12 +98,12 @@
             </div>
         </div>
 
-        <!-- Кнопки управления -->
+        <!-- Кнопки управления с прямыми onclick -->
         <div class="grid grid-cols-2 gap-2">
-            <button id="camBtn" class="bg-gradient-to-r from-blue-600 to-indigo-600 active:scale-95 text-white font-bold py-2.5 px-3 rounded-lg shadow-md transition-all text-xs flex items-center justify-center gap-1.5">
+            <button id="camBtn" onclick="toggleCamera()" class="bg-gradient-to-r from-blue-600 to-indigo-600 active:scale-95 text-white font-bold py-2.5 px-3 rounded-lg shadow-md transition-all text-xs flex items-center justify-center gap-1.5">
                 <span>📷</span> Камера
             </button>
-            <button id="testBtn" class="bg-gradient-to-r from-red-600 to-rose-600 active:scale-95 text-white font-bold py-2.5 px-3 rounded-lg shadow-md transition-all text-xs flex items-center justify-center gap-1.5">
+            <button onclick="manualHit()" class="bg-gradient-to-r from-red-600 to-rose-600 active:scale-95 text-white font-bold py-2.5 px-3 rounded-lg shadow-md transition-all text-xs flex items-center justify-center gap-1.5">
                 <span>💥</span> Тест урон
             </button>
         </div>
@@ -207,8 +207,8 @@
                     } else {
                         clearInterval(prepInterval);
                         isReadyToFight = true;
-                        statusMsg.innerText = "🔥 Лягте в упор лёжа (покажите ноги)!";
-                        document.getElementById("poseStateText").innerText = "ПОИСК";
+                        statusMsg.innerText = "🔥 Бой идёт! Отжимайтесь!";
+                        document.getElementById("poseStateText").innerText = "ВЕРХ";
                     }
                 }, 1000);
 
@@ -236,31 +236,38 @@
                 const rightElbow = landmarks[14];
                 const leftWrist = landmarks[15];
                 const rightWrist = landmarks[16];
-                const leftHip = landmarks[23];
-                const rightHip = landmarks[24];
-                const leftKnee = landmarks[25];
-                const rightKnee = landmarks[26];
 
-                const isUpperVisible = leftShoulder && rightShoulder && leftElbow && rightElbow && leftWrist && rightWrist &&
-                                      leftShoulder.visibility > 0.3 && rightShoulder.visibility > 0.3;
-                
-                const isLegsVisible = leftHip && rightHip && leftKnee && rightKnee &&
-                                      leftHip.visibility > 0.25 && rightHip.visibility > 0.25;
+                const isVisible = leftShoulder && rightShoulder && leftElbow && rightElbow && leftWrist && rightWrist &&
+                                  leftShoulder.visibility > 0.3 && rightShoulder.visibility > 0.3;
 
-                if (isUpperVisible && isLegsVisible) {
+                if (isVisible) {
+                    let shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
+                    let hipMidY = shoulderMidY + 0.3;
+
+                    let verticalSpan = Math.abs(hipMidY - shoulderMidY);
+                    
+                    if (verticalSpan > 0.38) {
+                        document.getElementById("statusMsg").innerText = "⚠️ ПРИМИТЕ УПОР ЛЁЖА!";
+                        document.getElementById("poseStateText").innerText = "СИДИТ/СТОИТ";
+                        pushupState = 0;
+                        canvasCtx.restore();
+                        return;
+                    }
+
                     document.getElementById("statusMsg").innerText = "🔥 Бой идёт! Отжимайтесь!";
-
-                    drawFullBodySkeleton(landmarks);
-
                     const leftAngle = calculateAngle(leftShoulder, leftElbow, leftWrist);
                     const rightAngle = calculateAngle(rightShoulder, rightElbow, rightWrist);
                     const avgAngle = (leftAngle + rightAngle) / 2;
 
+                    drawBoneAndJoint(leftShoulder, leftElbow);
+                    drawBoneAndJoint(leftElbow, leftWrist);
+                    drawBoneAndJoint(rightShoulder, rightElbow);
+                    drawBoneAndJoint(rightElbow, rightWrist);
+
                     processPushupState(avgAngle);
                 } else {
-                    document.getElementById("statusMsg").innerText = "⚠️ ПОКАЖИТЕ НОГИ И ТЕЛО В КАДРЕ!";
-                    document.getElementById("poseStateText").innerText = "НЕТ НОГ";
-                    pushupState = 0;
+                    document.getElementById("statusMsg").innerText = "⚠️ Отойдите назад, чтобы руки были в кадре";
+                    document.getElementById("poseStateText").innerText = "В КАДРЕ?";
                 }
             } else if (isReadyToFight) {
                 document.getElementById("poseStateText").innerText = "НЕТ ТЕЛА";
@@ -269,4 +276,20 @@
         }
 
         function calculateAngle(a, b, c) {
-            
+            if (!a || !b || !c) return 180;
+            let radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
+            let angle = Math.abs(radians * 180.0 / Math.PI);
+            if (angle > 180.0) angle = 360.0 - angle;
+            return angle;
+        }
+
+        function drawBoneAndJoint(p1, p2) {
+            if (!p1 || !p2) return;
+            const x1 = p1.x * canvasElement.width;
+            const y1 = p1.y * canvasElement.height;
+            const x2 = p2.x * canvasElement.width;
+            const y2 = p2.y * canvasElement.height;
+
+            canvasCtx.beginPath();
+            canvasCtx.moveTo(x
+                             
