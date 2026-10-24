@@ -243,19 +243,17 @@
                                   leftShoulder.visibility > 0.4 && rightShoulder.visibility > 0.4;
 
                 if (isVisible) {
-                    // АНТИ-ЧИТ: Проверка положения тела (сидит или в упоре лёжа)
-                    const shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
-                    const hipMidY = (leftHip && rightHip && leftHip.visibility > 0.3 && rightHip.visibility > 0.3) 
-                                    ? (leftHip.y + rightHip.y) / 2 
-                                    : shoulderMidY + 0.3; // фоллбэк
+                    // СТРОГИЙ АНТИ-ЧИТ: Проверка положения тела
+                    let shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
+                    let hipMidY = (leftHip && rightHip && leftHip.visibility > 0.3 && rightHip.visibility > 0.3) 
+                                  ? (leftHip.y + rightHip.y) / 2 
+                                  : shoulderMidY + 0.3;
 
-                    const verticalSpan = Math.abs(hipMidY - shoulderMidY);
+                    let verticalSpan = Math.abs(hipMidY - shoulderMidY);
                     
-                    // Если вертикальный разрыв между плечами и тазом большой (> 0.23), значит человек сидит или стоит вертикально
-                    const isSittingOrStanding = verticalSpan > 0.23;
-
-                    if (isSittingOrStanding) {
-                        document.getElementById("statusMsg").innerText = "⚠️ ЛЯГТЕ НА ПОЛ (упор лёжа)!";
+                    // Если вертикальный разрыв между плечами и тазом большой (> 0.20), человек сидит или стоит
+                    if (verticalSpan > 0.20) {
+                        document.getElementById("statusMsg").innerText = "⚠️ СЯДЬТЕ / ЛЯГТЕ В УПОР ЛЁЖА!";
                         document.getElementById("poseStateText").innerText = "СИДИТ/СТОИТ";
                         pushupState = 0;
                         canvasCtx.restore();
@@ -267,14 +265,15 @@
                     const rightAngle = calculateAngle(rightShoulder, rightElbow, rightWrist);
                     const avgAngle = (leftAngle + rightAngle) / 2;
 
-                    drawSkeletonLine(leftShoulder, leftElbow);
-                    drawSkeletonLine(leftElbow, leftWrist);
-                    drawSkeletonLine(rightShoulder, rightElbow);
-                    drawSkeletonLine(rightElbow, rightWrist);
+                    // Отрисовка скелета с кругляшками на суставах
+                    drawBoneAndJoint(leftShoulder, leftElbow);
+                    drawBoneAndJoint(leftElbow, leftWrist);
+                    drawBoneAndJoint(rightShoulder, rightElbow);
+                    drawBoneAndJoint(rightElbow, rightWrist);
 
                     processPushupState(avgAngle);
                 } else {
-                    document.getElementById("statusMsg").innerText = "⚠️ Отойдите назад, чтобы тело было в кадре";
+                    document.getElementById("statusMsg").innerText = "⚠️ Отойдите назад, чтобы руки были в кадре";
                     document.getElementById("poseStateText").innerText = "В КАДРЕ?";
                 }
             } else if (isReadyToFight) {
@@ -291,14 +290,28 @@
             return angle;
         }
 
-        function drawSkeletonLine(p1, p2) {
+        // Отрисовка линии кости и кругляшка сустава
+        function drawBoneAndJoint(p1, p2) {
             if (!p1 || !p2) return;
+            const x1 = p1.x * canvasElement.width;
+            const y1 = p1.y * canvasElement.height;
+            const x2 = p2.x * canvasElement.width;
+            const y2 = p2.y * canvasElement.height;
+
+            // Линия
             canvasCtx.beginPath();
-            canvasCtx.moveTo(p1.x * canvasElement.width, p1.y * canvasElement.height);
-            canvasCtx.lineTo(p2.x * canvasElement.width, p2.y * canvasElement.height);
+            canvasCtx.moveTo(x1, y1);
+            canvasCtx.lineTo(x2, y2);
             canvasCtx.strokeStyle = pushupState === 1 ? "#ef4444" : "#22c55e";
             canvasCtx.lineWidth = 5;
             canvasCtx.stroke();
+
+            // Кругляшки на суставах
+            canvasCtx.beginPath();
+            canvasCtx.arc(x1, y1, 6, 0, 2 * Math.PI);
+            canvasCtx.arc(x2, y2, 6, 0, 2 * Math.PI);
+            canvasCtx.fillStyle = "#38bdf8";
+            canvasCtx.fill();
         }
 
         function processPushupState(angle) {
