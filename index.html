@@ -1,184 +1,429 @@
-Приношу извинения за бесконечные проблемы. Я полностью переписал отрисовку, обновил размеры холста и жестко задал стили, чтобы графика точно отображалась. Вот исправленный код. Я вас понял. Проблема в том, что код отрисовки не был полноценно сбалансирован под canvas, и кнопки действительно не работали должным образом.
-Я всё исправил, переписал отрисовку всех персонажей и настроил элементы управления. Проверьте этот готовый код.
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>НУБОКЛИКЕР</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap');
-        * { font-family: 'Montserrat', sans-serif; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
-        body { background: #070913; color: #f8fafc; overflow: hidden; position: fixed; width: 100%; height: 100%; }
-        @keyframes floatUp { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-80px) scale(1.3); } }
-        .floating-text { position: absolute; animation: floatUp 0.8s ease-out forwards; pointer-events: none; font-weight: 900; text-shadow: 0 2px 4px rgba(0,0,0,0.8); z-index: 50; }
-        ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #0f172a; } ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Montserrat', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: #070913;
+            color: #f8fafc;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            overflow: hidden;
+        }
+
+        /* Шапка */
+        header {
+            background: rgba(15, 23, 42, 0.95);
+            border-bottom: 1px solid #1e293b;
+            padding: 12px;
+            z-index: 10;
+        }
+
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            max-width: 400px;
+            margin: 0 auto;
+            gap: 10px;
+        }
+
+        .stat-card {
+            background: #020617;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+        }
+
+        .stat-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            color: #94a3b8;
+            font-weight: 700;
+        }
+
+        .stat-value {
+            font-size: 15px;
+            font-weight: 900;
+            color: #fbbf24;
+        }
+
+        /* Прогресс-бар */
+        .progress-box {
+            max-width: 400px;
+            margin: 8px auto 0;
+        }
+
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            font-weight: 700;
+            margin-bottom: 4px;
+            color: #cbd5e1;
+        }
+
+        .progress-bar-bg {
+            background: #020617;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid #1e293b;
+        }
+
+        .progress-bar-fill {
+            background: linear-gradient(90deg, #d97706, #f59e0b, #fef08a);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* Главная зона персонажа */
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px;
+            position: relative;
+            overflow-y: auto;
+        }
+
+        .tab-content {
+            width: 100%;
+            max-width: 400px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .tap-power-badge {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid #334155;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        /* Персонаж */
+        .character-wrapper {
+            position: relative;
+            width: 220px;
+            height: 220px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            margin: my-auto;
+        }
+
+        .character-svg {
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 10px 15px rgba(0,0,0,0.5));
+            transition: transform 0.05s ease;
+        }
+
+        .character-wrapper:active .character-svg {
+            transform: scale(0.92);
+        }
+
+        .char-title {
+            font-size: 20px;
+            font-weight: 900;
+            color: #fbbf24;
+            text-align: center;
+        }
+
+        .char-subtitle {
+            font-size: 11px;
+            color: #64748b;
+            text-align: center;
+            margin-top: 2px;
+        }
+
+        /* Нижнее меню */
+        nav {
+            background: #0f172a;
+            border-top: 1px solid #1e293b;
+            padding: 8px 16px;
+            display: flex;
+            justify-content: space-around;
+        }
+
+        .nav-btn {
+            background: none;
+            border: none;
+            color: #64748b;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .nav-btn.active {
+            color: #fbbf24;
+        }
+
+        .nav-icon {
+            font-size: 20px;
+        }
+
+        /* Вылетающие цифры */
+        .floating-text {
+            position: absolute;
+            animation: floatUp 0.8s ease-out forwards;
+            pointer-events: none;
+            font-weight: 900;
+            font-size: 22px;
+            color: #fbbf24;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            z-index: 100;
+        }
+
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-70px) scale(1.2); }
+        }
+
+        /* Список в магазине/эволюции */
+        .list-container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding-bottom: 20px;
+        }
+
+        .card {
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-btn {
+            background: #f59e0b;
+            color: #020617;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-weight: 800;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .card-btn:disabled {
+            background: #334155;
+            color: #64748b;
+        }
     </style>
 </head>
-<body class="flex flex-col h-full bg-[#070913] text-slate-100">
-    <header class="w-full bg-slate-900/90 backdrop-blur-md border-b border-slate-800 p-3 pt-safe z-30 shadow-lg">
-        <div class="flex justify-between items-center max-w-md mx-auto">
-            <div class="flex items-center gap-2.5 bg-slate-950/80 px-3.5 py-2 rounded-2xl border border-amber-500/30 shadow-inner">
-                <span class="text-2xl">🪙</span>
-                <div><div class="text-[10px] uppercase font-bold tracking-wider text-amber-400/80">Монеты</div><div id="coin-counter" class="text-lg font-black text-amber-300 tracking-tight">0</div></div>
+<body>
+
+    <!-- Хэдер -->
+    <header>
+        <div class="stats-row">
+            <div class="stat-card">
+                <span style="font-size:20px;">🪙</span>
+                <div>
+                    <div class="stat-label">Монеты</div>
+                    <div class="stat-value" id="coin-counter">0</div>
+                </div>
             </div>
-            <div class="flex items-center gap-2 bg-slate-950/80 px-3 py-2 rounded-2xl border border-blue-500/30">
-                <span class="text-xl">⚡</span>
-                <div><div class="text-[10px] uppercase font-bold tracking-wider text-blue-400/80">Доход в сек</div><div id="cps-counter" class="text-sm font-bold text-blue-300">+0 /сек</div></div>
+            <div class="stat-card">
+                <span style="font-size:20px;">⚡</span>
+                <div>
+                    <div class="stat-label">Доход в сек</div>
+                    <div class="stat-value" id="cps-counter" style="color:#60a5fa;">+0 /сек</div>
+                </div>
             </div>
         </div>
-        <div class="max-w-md mx-auto mt-2.5">
-            <div class="flex justify-between items-center text-xs font-semibold mb-1"><span id="header-form-name" class="text-slate-300 truncate max-w-[200px]">Обычный нуб</span><span id="header-form-percent" class="text-amber-400 font-bold">0%</span></div>
-            <div class="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-800"><div id="evolution-progress-bar" class="bg-gradient-to-r from-amber-600 via-amber-400 to-yellow-300 h-full rounded-full transition-all duration-300" style="width: 0%;"></div></div>
+
+        <div class="progress-box">
+            <div class="progress-info">
+                <span id="header-form-name">1. Обычный нуб</span>
+                <span id="header-form-percent" style="color:#fbbf24;">0%</span>
+            </div>
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="evolution-progress-bar"></div>
+            </div>
         </div>
     </header>
 
-    <main class="flex-1 relative overflow-hidden max-w-md w-full mx-auto pb-20">
-        <div id="tab-clicker" class="tab-content flex flex-col h-full justify-between p-4 items-center">
-            <div class="w-full flex justify-between items-center px-2">
-                <div class="bg-slate-900/60 backdrop-blur border border-slate-800 px-3 py-1 rounded-xl text-xs font-semibold text-slate-300">Сила тапа: <span id="tap-power-display" class="text-amber-400 font-black">+1</span></div>
-                <div id="crit-indicator" class="hidden bg-red-500/20 border border-red-500/50 px-2.5 py-1 rounded-xl text-xs font-black text-red-400 animate-pulse">CRIT x5! 🔥</div>
+    <!-- Основной контент -->
+    <main>
+        <!-- Вкладка Кликера -->
+        <div id="tab-clicker" class="tab-content">
+            <div class="tap-power-badge">Сила тапа: <span id="tap-power-display" style="color:#fbbf24;">+1</span></div>
+
+            <!-- SVG Интерактивный Персонаж -->
+            <div class="character-wrapper" id="click-target">
+                <svg id="character-svg" class="character-svg" viewBox="0 0 200 200">
+                    <!-- Рендерится через JS -->
+                </svg>
             </div>
 
-            <div class="relative flex items-center justify-center my-auto w-64 h-64 cursor-pointer flex-shrink-0" id="click-target">
-                <canvas id="gameCanvas" width="280" height="280" class="drop-shadow-2xl w-full h-full"></canvas>
-            </div>
-
-            <div class="text-center mb-2">
-                <div id="current-form-title" class="text-lg font-black bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-400 bg-clip-text text-transparent">Обычный нуб</div>
-                <div class="text-xs text-slate-400 font-medium mt-0.5">Тапай по персонажу!</div>
+            <div>
+                <div class="char-title" id="current-form-title">Обычный нуб</div>
+                <div class="char-subtitle">Нажимай на персонажа!</div>
             </div>
         </div>
 
-        <div id="tab-shop" class="tab-content hidden flex flex-col h-full p-4 overflow-y-auto">
-            <h2 class="text-xl font-black mb-3 text-amber-400 flex items-center gap-2">🛒 Магазин улучшений</h2>
-            <div id="shop-items-container" class="flex flex-col gap-3 pb-16"></div>
+        <!-- Вкладка Магазина -->
+        <div id="tab-shop" class="tab-content hidden" style="justify-content: flex-start;">
+            <h3 style="margin-bottom: 15px; color: #fbbf24;">🛒 Магазин улучшений</h3>
+            <div class="list-container" id="shop-items-container"></div>
         </div>
 
-        <div id="tab-evolution" class="tab-content hidden flex flex-col h-full p-4 overflow-y-auto">
-            <h2 class="text-xl font-black mb-1 text-purple-400 flex items-center gap-2">🧬 Эволюция нуба</h2>
-            <p class="text-xs text-slate-400 mb-3">Открывай новые формы, зарабатывая монеты!</p>
-            <div id="evolution-list-container" class="flex flex-col gap-3 pb-16"></div>
-        </div>
-
-        <div id="tab-achievements" class="tab-content hidden flex flex-col h-full p-4 overflow-y-auto">
-            <h2 class="text-xl font-black mb-3 text-cyan-400 flex items-center gap-2">🏆 Достижения</h2>
-            <div id="achievements-list-container" class="flex flex-col gap-3 pb-16"></div>
-        </div>
-
-        <div id="tab-stats" class="tab-content hidden flex flex-col h-full p-4 overflow-y-auto">
-            <h2 class="text-xl font-black mb-3 text-emerald-400 flex items-center gap-2">📊 Статистика и бонус</h2>
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4 shadow-lg">
-                <div class="flex items-center justify-between mb-2">
-                    <div><div class="font-bold text-sm text-slate-200">🎁 Ежедневный бонус</div><div class="text-xs text-slate-400">Монеты каждые 24 часа</div></div>
-                    <button id="daily-bonus-btn" onclick="claimDailyBonus()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-lg transition active:scale-95 disabled:opacity-50">Получить</button>
-                </div>
-                <div id="daily-timer" class="text-xs text-emerald-400 font-semibold">Доступно!</div>
-            </div>
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4 space-y-3">
-                <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Игровая статистика</div>
-                <div class="flex justify-between text-sm"><span class="text-slate-400">Всего тапов:</span><span id="stat-total-taps" class="font-bold text-slate-200">0</span></div>
-                <div class="flex justify-between text-sm"><span class="text-slate-400">Заработано монет:</span><span id="stat-total-coins" class="font-bold text-amber-300">0</span></div>
-                <div class="flex justify-between text-sm"><span class="text-slate-400">Критических ударов:</span><span id="stat-total-crits" class="font-bold text-red-400">0</span></div>
-                <div class="flex justify-between text-sm"><span class="text-slate-400">Открыто форм:</span><span id="stat-unlocked-forms" class="font-bold text-purple-400">1 / 4</span></div>
-            </div>
-            <div class="flex gap-3 pb-16">
-                <button onclick="saveGame()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 py-3 rounded-xl font-bold text-xs border border-slate-700 transition active:scale-95">💾 Сохранить</button>
-                <button onclick="resetGame()" class="flex-1 bg-red-950/40 hover:bg-red-900/50 text-red-400 py-3 rounded-xl font-bold text-xs border border-red-900/50 transition active:scale-95">⚠️ Сбросить</button>
-            </div>
+        <!-- Вкладка Эволюции -->
+        <div id="tab-evolution" class="tab-content hidden" style="justify-content: flex-start;">
+            <h3 style="margin-bottom: 15px; color: #a855f7;">🧬 Галерея Эволюции</h3>
+            <div class="list-container" id="evolution-list-container"></div>
         </div>
     </main>
 
-    <nav class="absolute bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-lg border-t border-slate-800 py-2 px-4 z-30 shadow-2xl pb-safe">
-        <div class="max-w-md mx-auto flex justify-around items-center">
-            <button onclick="switchTab('clicker')" class="nav-btn flex flex-col items-center gap-1 text-amber-400" data-tab="clicker"><span class="text-xl">👆</span><span class="text-[10px] font-bold">Тап</span></button>
-            <button onclick="switchTab('shop')" class="nav-btn flex flex-col items-center gap-1 text-slate-400" data-tab="shop"><span class="text-xl">🛒</span><span class="text-[10px] font-bold">Магазин</span></button>
-            <button onclick="switchTab('evolution')" class="nav-btn flex flex-col items-center gap-1 text-slate-400" data-tab="evolution"><span class="text-xl">🧬</span><span class="text-[10px] font-bold">Эволюция</span></button>
-            <button onclick="switchTab('achievements')" class="nav-btn flex flex-col items-center gap-1 text-slate-400" data-tab="achievements"><span class="text-xl">🏆</span><span class="text-[10px] font-bold">Ачивки</span></button>
-            <button onclick="switchTab('stats')" class="nav-btn flex flex-col items-center gap-1 text-slate-400" data-tab="stats"><span class="text-xl">📊</span><span class="text-[10px] font-bold">Стат</span></button>
-        </div>
+    <!-- Навигация -->
+    <nav>
+        <button class="nav-btn active" onclick="switchTab('clicker')" id="nav-clicker">
+            <span class="nav-icon">👆</span>
+            <span>Тап</span>
+        </button>
+        <button class="nav-btn" onclick="switchTab('shop')" id="nav-shop">
+            <span class="nav-icon">🛒</span>
+            <span>Магазин</span>
+        </button>
+        <button class="nav-btn" onclick="switchTab('evolution')" id="nav-evolution">
+            <span class="nav-icon">🧬</span>
+            <span>Эволюция</span>
+        </button>
     </nav>
 
-    <div id="evolution-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-gradient-to-b from-slate-900 to-slate-950 border-2 border-amber-500/60 rounded-3xl p-6 max-w-xs w-full text-center shadow-2xl animate-bounce">
-            <div class="text-4xl mb-2">🎉</div>
-            <div class="text-xl font-black text-amber-400 mb-1">ЭВОЛЮЦИЯ!</div>
-            <div id="modal-form-desc" class="text-sm text-slate-300 mb-4">Новая форма разблокирована!</div>
-            <button onclick="closeEvolutionModal()" class="w-full bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-black py-3 rounded-2xl shadow-lg active:scale-95 transition">КРУТО!</button>
-        </div>
-    </div>
-
     <script>
-        let game = { coins: 0, totalCoinsEarned: 0, totalTaps: 0, totalCrits: 0, tapPowerLevel: 0, brainLevel: 0, botLevel: 0, doubleTapLevel: 0, autoClickerLevel: 0, multiplierLevel: 0, megaUpgradeLevel: 0, unlockedForms: [0], achievements: {}, lastDailyBonus: 0, soundEnabled: true };
+        let game = {
+            coins: 0,
+            totalCoinsEarned: 0,
+            totalTaps: 0,
+            tapPowerLevel: 0,
+            brainLevel: 0,
+            botLevel: 0,
+            unlockedForms: [0]
+        };
+
+        // Векторные шаблоны 4 персонажей
         const NOOB_FORMS = [
-            { id: 0, name: "1. Обычный нуб", cost: 0, type: "normal", color: "#facc15" },
-            { id: 1, name: "2. Нуб-Горилла", cost: 5000, type: "gorilla", color: "#9333ea" },
-            { id: 2, name: "3. Нуб-Демон", cost: 100000, type: "demon", color: "#dc2626" },
-            { id: 3, name: "4. Золотый Император", cost: 1000000, type: "emperor", color: "#fbbf24" }
-        ];
-        const SHOP_ITEMS = [
-            { id: 'tapPower', name: 'Железный палец', desc: '+1 монета за тап', baseCost: 15, costMult: 1.5, getLevel: () => game.tapPowerLevel, setLevel: (v) => game.tapPowerLevel = v, getEffect: (lvl) => `+${1 + lvl}` },
-            { id: 'brain', name: 'Мозг нуба', desc: 'Улучшает мышление', baseCost: 100, costMult: 1.6, getLevel: () => game.brainLevel, setLevel: (v) => game.brainLevel = v, getEffect: (lvl) => `+${(lvl * 0.5).toFixed(1)}/сек` },
-            { id: 'bot', name: 'Нубо-бот', desc: 'Авто-кликер помощник', baseCost: 500, costMult: 1.7, getLevel: () => game.botLevel, setLevel: (v) => game.botLevel = v, getEffect: (lvl) => `+${lvl * 2}/сек` },
-            { id: 'doubleTap', name: 'Двойной тап', desc: 'Удваивает силу тапа', baseCost: 2000, costMult: 2.2, getLevel: () => game.doubleTapLevel, setLevel: (v) => game.doubleTapLevel = v, getEffect: (lvl) => `x${Math.pow(2, lvl)}` },
-            { id: 'autoClicker', name: 'Авто-механизм', desc: 'Мощный сбор монет', baseCost: 10000, costMult: 2.1, getLevel: () => game.autoClickerLevel, setLevel: (v) => game.autoClickerLevel = v, getEffect: (lvl) => `+${lvl * 10}/сек` },
-            { id: 'multiplier', name: 'Множитель', desc: 'Множит весь доход', baseCost: 50000, costMult: 2.5, getLevel: () => game.multiplierLevel, setLevel: (v) => game.multiplierLevel = v, getEffect: (lvl) => `x${1 + lvl * 0.5}` },
-            { id: 'megaUpgrade', name: 'Мега-прокачка', desc: 'Имбовое улучшение', baseCost: 250000, costMult: 3.0, getLevel: () => game.megaUpgradeLevel, setLevel: (v) => game.megaUpgradeLevel = v, getEffect: (lvl) => `+${lvl * 50}/сек` }
-        ];
-        const ACHIEVEMENTS = [
-            { id: 'taps_100', name: 'Первые шаги', desc: '100 тапов', check: () => game.totalTaps >= 100, reward: 500 },
-            { id: 'taps_1000', name: 'Мастер', desc: '1000 тапов', check: () => game.totalTaps >= 1000, reward: 5000 },
-            { id: 'coins_10k', name: 'Богатей', desc: '10,000 монет', check: () => game.totalCoinsEarned >= 10000, reward: 2500 },
-            { id: 'coins_1m', name: 'Миллионер', desc: '1,000,000 монет', check: () => game.totalCoinsEarned >= 1000000, reward: 100000 }
+            {
+                id: 0, name: "1. Обычный нуб", cost: 0,
+                svg: `
+                    <rect x="65" y="80" width="70" height="60" fill="#2563eb" rx="5"/>
+                    <rect x="70" y="140" width="25" height="50" fill="#059669" rx="3"/>
+                    <rect x="105" y="140" width="25" height="50" fill="#059669" rx="3"/>
+                    <rect x="40" y="85" width="20" height="50" fill="#facc15" rx="3"/>
+                    <rect x="140" y="85" width="20" height="50" fill="#facc15" rx="3"/>
+                    <rect x="55" y="25" width="90" height="60" fill="#facc15" rx="8" stroke="#ca8a04" stroke-width="3"/>
+                    <circle cx="80" cy="50" r="8" fill="#fff"/><circle cx="82" cy="50" r="4" fill="#000"/>
+                    <circle cx="120" cy="48" r="8" fill="#fff"/><circle cx="122" cy="48" r="4" fill="#000"/>
+                    <path d="M 85 65 Q 100 80 115 65" stroke="#000" stroke-width="4" fill="none" stroke-linecap="round"/>
+                    <polygon points="75,25 70,5 88,18 100,2 112,18 130,5 125,25" fill="#fbbf24" stroke="#d97706" stroke-width="2"/>
+                `
+            },
+            {
+                id: 1, name: "2. Нуб-Горилла", cost: 5000,
+                svg: `
+                    <rect x="45" y="70" width="110" height="75" fill="#1e293b" rx="10"/>
+                    <rect x="60" y="145" width="35" height="45" fill="#78350f" rx="5"/>
+                    <rect x="105" y="145" width="35" height="45" fill="#78350f" rx="5"/>
+                    <rect x="20" y="75" width="25" height="65" fill="#78350f" rx="5"/>
+                    <rect x="155" y="75" width="25" height="65" fill="#78350f" rx="5"/>
+                    <rect x="50" y="20" width="100" height="55" fill="#eab308" rx="8"/>
+                    <rect x="68" y="38" width="20" height="8" fill="#000"/>
+                    <rect x="112" y="38" width="20" height="8" fill="#000"/>
+                    <line x1="65" y1="30" x2="90" y2="36" stroke="#000" stroke-width="4"/>
+                    <line x1="135" y1="30" x2="110" y2="36" stroke="#000" stroke-width="4"/>
+                    <rect x="75" y="58" width="50" height="6" fill="#000"/>
+                    <rect x="165" y="40" width="12" height="80" fill="#451a03" rx="3" transform="rotate(15 165 40)"/>
+                `
+            },
+            {
+                id: 2, name: "3. Нуб-Демон", cost: 100000,
+                svg: `
+                    <path d="M 60 90 L 10 50 L 30 110 Z" fill="#991b1b"/>
+                    <path d="M 140 90 L 190 50 L 170 110 Z" fill="#991b1b"/>
+                    <rect x="55" y="75" width="90" height="70" fill="#7f1d1d" rx="8"/>
+                    <rect x="65" y="145" width="28" height="45" fill="#450a0a" rx="4"/>
+                    <rect x="107" y="145" width="28" height="45" fill="#450a0a" rx="4"/>
+                    <polygon points="65,25 45,0 75,20" fill="#450a0a"/>
+                    <polygon points="135,25 155,0 125,20" fill="#450a0a"/>
+                    <rect x="50" y="20" width="100" height="60" fill="#b91c1c" rx="8"/>
+                    <rect x="70" y="42" width="16" height="8" fill="#fef08a"/>
+                    <rect x="114" y="42" width="16" height="8" fill="#fef08a"/>
+                    <path d="M 80 62 Q 100 75 120 62" stroke="#000" stroke-width="4" fill="none"/>
+                `
+            },
+            {
+                id: 3, name: "4. Золотой Император", cost: 1000000,
+                svg: `
+                    <path d="M 50 80 L 0 30 L 25 110 Z" fill="#fef08a"/>
+                    <path d="M 150 80 L 200 30 L 175 110 Z" fill="#fef08a"/>
+                    <rect x="55" y="70" width="90" height="75" fill="#b45309" rx="8"/>
+                    <rect x="65" y="80" width="70" height="55" fill="#fbbf24" rx="5"/>
+                    <rect x="65" y="145" width="28" height="45" fill="#d97706" rx="4"/>
+                    <rect x="107" y="145" width="28" height="45" fill="#d97706" rx="4"/>
+                    <rect x="48" y="18" width="104" height="60" fill="#fde047" rx="8" stroke="#ca8a04" stroke-width="3"/>
+                    <rect x="70" y="40" width="14" height="12" fill="#000"/>
+                    <rect x="116" y="40" width="14" height="12" fill="#000"/>
+                    <polygon points="50,18 45,-10 70,5 100,-15 130,5 155,-10 150,18" fill="#fef08a" stroke="#d97706" stroke-width="2"/>
+                `
+            }
         ];
 
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        function playSound(type) {
-            if (!game.soundEnabled) return;
-            try {
-                if (audioCtx.state === 'suspended') audioCtx.resume();
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.connect(gain); gain.connect(audioCtx.destination);
-                if (type === 'tap') {
-                    osc.frequency.setValueAtTime(400, audioCtx.currentTime);
-                    osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.05);
-                    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
-                    osc.start(); osc.stop(audioCtx.currentTime + 0.05);
-                } else if (type === 'crit') {
-                    osc.frequency.setValueAtTime(600, audioCtx.currentTime);
-                    osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
-                    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-                    osc.start(); osc.stop(audioCtx.currentTime + 0.1);
-                } else if (type === 'buy') {
-                    osc.frequency.setValueAtTime(300, audioCtx.currentTime);
-                    osc.frequency.setValueAtTime(500, audioCtx.currentTime + 0.08);
-                    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
-                    osc.start(); osc.stop(audioCtx.currentTime + 0.2);
-                }
-            } catch(e) {}
-        }
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        let animTime = 0;
-        let scaleAnim = 1;
+        const SHOP_ITEMS = [
+            { id: 'tapPower', name: 'Железный палец', desc: '+1 за клик', baseCost: 15, mult: 1.5 },
+            { id: 'brain', name: 'Мозг нуба', desc: '+1 монета/сек', baseCost: 100, mult: 1.6 },
+            { id: 'bot', name: 'Нубо-бот', desc: '+5 монет/сек', baseCost: 500, mult: 1.7 }
+        ];
 
         function getTapPower() {
-            let base = 1 + game.tapPowerLevel;
-            let multiplier = Math.pow(2, game.doubleTapLevel);
-            let total = base * multiplier;
-            let multUpgrade = 1 + (game.multiplierLevel * 0.5);
-            return Math.floor(total * multUpgrade);
+            return 1 + game.tapPowerLevel;
         }
+
         function getCPS() {
-            let baseCPS = (game.brainLevel * 0.5) + (game.botLevel * 2) + (game.autoClickerLevel * 10) + (game.megaUpgradeLevel * 50);
-            let multUpgrade = 1 + (game.multiplierLevel * 0.5);
-            return baseCPS * multUpgrade;
+            return (game.brainLevel * 1) + (game.botLevel * 5);
         }
+
         function getCurrentFormIndex() {
             let idx = 0;
             for (let i = 0; i < NOOB_FORMS.length; i++) {
@@ -186,157 +431,118 @@
             }
             return idx;
         }
-        function drawCharacter() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            animTime += 0.06;
-            if (scaleAnim > 1) scaleAnim -= 0.06;
-            ctx.save();
-            ctx.translate(canvas.width / 2, canvas.height / 2 + 15);
-            ctx.scale(scaleAnim, scaleAnim);
-            let formIdx = getCurrentFormIndex();
-            let form = NOOB_FORMS[formIdx];
-            let breath = Math.sin(animTime) * 4;
-            if (form.type === 'normal') {
-                ctx.fillStyle = '#2563eb'; ctx.fillRect(-32, -5 + breath, 64, 60); ctx.strokeStyle = '#1d4ed8'; ctx.lineWidth = 3; ctx.strokeRect(-32, -5 + breath, 64, 60);
-                ctx.fillStyle = '#059669'; ctx.fillRect(-28, 55 + breath, 24, 50); ctx.fillRect(4, 55 + breath, 24, 50);
-                ctx.fillStyle = '#facc15'; ctx.fillRect(-56, 0 + breath, 20, 58); ctx.fillRect(36, 0 + breath, 20, 58);
-                ctx.fillStyle = '#facc15'; ctx.fillRect(-38, -65 + breath, 76, 62); ctx.strokeStyle = '#ca8a04'; ctx.lineWidth = 3; ctx.strokeRect(-38, -65 + breath, 76, 62);
-                ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(-16, -38 + breath, 9, 0, Math.PI*2); ctx.fill(); ctx.stroke(); ctx.beginPath(); ctx.arc(16, -42 + breath, 9, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-                ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(-14, -38 + breath, 4, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(18, -42 + breath, 4, 0, Math.PI*2); ctx.fill();
-                ctx.fillStyle = '#7f1d1d'; ctx.beginPath(); ctx.arc(2, -22 + breath, 12, 0, Math.PI); ctx.fill(); ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.ellipse(4, -12 + breath, 8, 12, 0.2, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#991b1b'; ctx.lineWidth = 2; ctx.stroke();
-                ctx.fillStyle = '#fbbf24'; ctx.beginPath(); ctx.moveTo(-22, -65 + breath); ctx.lineTo(-28, -88 + breath); ctx.lineTo(-11, -75 + breath); ctx.lineTo(0, -92 + breath); ctx.lineTo(11, -75 + breath); ctx.lineTo(28, -88 + breath); ctx.lineTo(22, -65 + breath); ctx.closePath(); ctx.fill(); ctx.strokeStyle = '#b45309'; ctx.stroke();
-            } else if (form.type === 'gorilla') {
-                ctx.fillStyle = '#78350f'; ctx.fillRect(-52, -15 + breath, 104, 75); ctx.fillStyle = '#1e293b'; ctx.fillRect(-42, -5 + breath, 84, 65);
-                ctx.fillStyle = '#451a03'; ctx.save(); ctx.translate(55, 10 + breath); ctx.rotate(0.3 + Math.sin(animTime)*0.1); ctx.fillRect(-6, -40, 14, 80); ctx.restore();
-                ctx.fillStyle = '#eab308'; ctx.fillRect(-44, -75 + breath, 88, 70); ctx.fillStyle = '#000'; ctx.fillRect(-28, -48 + breath, 14, 8); ctx.fillRect(14, -48 + breath, 14, 8);
-                ctx.beginPath(); ctx.moveTo(-32, -55); ctx.lineTo(-15, -46); ctx.lineWidth = 4; ctx.strokeStyle = '#000'; ctx.stroke(); ctx.beginPath(); ctx.moveTo(32, -55); ctx.lineTo(15, -46); ctx.stroke(); ctx.fillRect(-20, -25 + breath, 40, 8);
-            } else if (form.type === 'demon') {
-                ctx.fillStyle = '#991b1b'; ctx.beginPath(); ctx.moveTo(-30, -10); ctx.lineTo(-85, -50); ctx.lineTo(-65, 30); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(30, -10); ctx.lineTo(85, -50); ctx.lineTo(65, 30); ctx.closePath(); ctx.fill();
-                ctx.fillStyle = '#7f1d1d'; ctx.fillRect(-38, -5 + breath, 76, 75);
-                ctx.fillStyle = '#450a0a'; ctx.beginPath(); ctx.moveTo(-25, -70); ctx.lineTo(-45, -95); ctx.lineTo(-15, -68); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(25, -70); ctx.lineTo(45, -95); ctx.lineTo(15, -68); ctx.closePath(); ctx.fill();
-                ctx.fillStyle = '#b91c1c'; ctx.fillRect(-42, -72 + breath, 84, 68); ctx.fillStyle = '#fef08a'; ctx.fillRect(-24, -45, 12, 6); ctx.fillRect(12, -45, 12, 6); ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(0, -20, 16, 0, Math.PI); ctx.fill();
-            } else if (form.type === 'emperor') {
-                ctx.fillStyle = '#fef08a'; ctx.beginPath(); ctx.moveTo(-35, -5); ctx.lineTo(-95, -55); ctx.lineTo(-75, 40); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(35, -5); ctx.lineTo(95, -55); ctx.lineTo(75, 40); ctx.closePath(); ctx.fill();
-                ctx.fillStyle = '#b45309'; ctx.fillRect(-42, -5 + breath, 84, 78); ctx.fillStyle = '#fbbf24'; ctx.fillRect(-32, 5 + breath, 64, 58);
-                ctx.fillStyle = '#fde047'; ctx.fillRect(-44, -75 + breath, 88, 70); ctx.strokeStyle = '#ca8a04'; ctx.lineWidth = 3; ctx.strokeRect(-44, -75 + breath, 88, 70);
-                ctx.fillStyle = '#000'; ctx.fillRect(-26, -48, 10, 10); ctx.fillRect(16, -48, 10, 10);
-                ctx.fillStyle = '#d97706'; ctx.fillRect(-36, -98, 72, 24); ctx.fillStyle = '#fef08a'; ctx.beginPath(); ctx.moveTo(-36, -98); ctx.lineTo(-36, -118); ctx.lineTo(-18, -98); ctx.lineTo(0, -125); ctx.lineTo(18, -98); ctx.lineTo(36, -118); ctx.lineTo(36, -98); ctx.closePath(); ctx.fill();
+
+        // Обновление всей графики и персонажа
+        function updateUI() {
+            document.getElementById('coin-counter').innerText = Math.floor(game.coins).toLocaleString();
+            document.getElementById('cps-counter').innerText = `+${getCPS()} /сек`;
+            document.getElementById('tap-power-display').innerText = `+${getTapPower()}`;
+
+            let currentIdx = getCurrentFormIndex();
+            let form = NOOB_FORMS[currentIdx];
+
+            document.getElementById('current-form-title').innerText = form.name;
+            document.getElementById('header-form-name').innerText = form.name;
+            document.getElementById('character-svg').innerHTML = form.svg;
+
+            let nextForm = NOOB_FORMS[currentIdx + 1];
+            let percent = 100;
+            if (nextForm) {
+                percent = Math.min(100, Math.max(0, ((game.totalCoinsEarned - form.cost) / (nextForm.cost - form.cost)) * 100));
             }
-            ctx.restore();
-            requestAnimationFrame(drawCharacter);
+            document.getElementById('header-form-percent').innerText = `${Math.floor(percent)}%`;
+            document.getElementById('evolution-progress-bar').style.width = `${percent}%`;
         }
-        requestAnimationFrame(drawCharacter);
 
-        document.getElementById('click-target').addEventListener('click', (e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            let isCrit = Math.random() < 0.1;
+        // Клик по персонажу
+        const clickTarget = document.getElementById('click-target');
+        
+        function handleTap(e) {
+            e.preventDefault();
             let power = getTapPower();
-            if (isCrit) { power *= 5; game.totalCrits++; playSound('crit'); showCritIndicator(); } else { playSound('tap'); }
-            game.coins += power; game.totalCoinsEarned += power; game.totalTaps++; scaleAnim = 1.15;
-            showFloatingText(`+${power}`, e.clientX, e.clientY, isCrit ? '#ef4444' : '#fbbf24');
-            checkUnlocks(); updateUI();
-        });
+            game.coins += power;
+            game.totalCoinsEarned += power;
+            game.totalTaps++;
 
-        function showCritIndicator() { const ind = document.getElementById('crit-indicator'); ind.classList.remove('hidden'); setTimeout(() => ind.classList.add('hidden'), 600); }
-        function showFloatingText(text, x, y, color) {
-            const el = document.createElement('div'); el.className = 'floating-text text-lg';
-            el.style.left = `${x}px`; el.style.top = `${y}px`; el.style.color = color; el.innerText = text; document.body.appendChild(el); setTimeout(() => el.remove(), 800);
+            // Вылетающие цифры
+            let rect = clickTarget.getBoundingClientRect();
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            let text = document.createElement('div');
+            text.className = 'floating-text';
+            text.innerText = `+${power}`;
+            text.style.left = `${clientX - rect.left}px`;
+            text.style.top = `${clientY - rect.top}px`;
+            clickTarget.appendChild(text);
+
+            setTimeout(() => text.remove(), 800);
+
+            updateUI();
         }
 
+        clickTarget.addEventListener('touchstart', handleTap, {passive: false});
+        clickTarget.addEventListener('click', handleTap);
+
+        // Навигация
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+
             document.getElementById(`tab-${tabId}`).classList.remove('hidden');
-            document.querySelectorAll('.nav-btn').forEach(btn => {
-                btn.classList.remove('text-amber-400'); btn.classList.add('text-slate-400');
-                if(btn.dataset.tab === tabId) { btn.classList.add('text-amber-400'); btn.classList.remove('text-slate-400'); }
-            });
-            if(tabId === 'shop') renderShop();
-            if(tabId === 'evolution') renderEvolution();
-            if(tabId === 'achievements') renderAchievements();
-            if(tabId === 'stats') updateStatsUI();
+            document.getElementById(`nav-${tabId}`).classList.add('active');
+
+            if (tabId === 'shop') renderShop();
+            if (tabId === 'evolution') renderEvolution();
         }
 
         function renderShop() {
-            const container = document.getElementById('shop-items-container'); container.innerHTML = '';
+            let container = document.getElementById('shop-items-container');
+            container.innerHTML = '';
             SHOP_ITEMS.forEach(item => {
-                let lvl = item.getLevel(); let cost = Math.floor(item.baseCost * Math.pow(item.costMult, lvl)); let canAfford = game.coins >= cost;
-                const card = document.createElement('div'); card.className = `bg-slate-900 border ${canAfford ? 'border-slate-800' : 'border-slate-900'} rounded-2xl p-3.5 flex items-center justify-between shadow-md`;
-                card.innerHTML = `<div class="flex-1 pr-3"><div class="flex items-center gap-2 mb-0.5"><span class="font-bold text-sm text-slate-200">${item.name}</span><span class="text-[10px] bg-slate-800 px-2 py-0.5 rounded-md text-amber-400 font-bold">ур. ${lvl}</span></div><div class="text-xs text-slate-400 mb-1">${item.desc}</div><div class="text-xs font-bold text-blue-400">Эффект: ${item.getEffect(lvl)}</div></div><button onclick="buyUpgrade('${item.id}')" class="px-4 py-2.5 rounded-xl font-bold text-xs shadow-lg transition active:scale-95 ${canAfford ? 'bg-amber-500 hover:bg-amber-400 text-slate-950' : 'bg-slate-800 text-slate-500 cursor-not-allowed'}">🪙 ${cost.toLocaleString()}</button>`;
+                let lvl = item.id === 'tapPower' ? game.tapPowerLevel : (item.id === 'brain' ? game.brainLevel : game.botLevel);
+                let cost = Math.floor(item.baseCost * Math.pow(item.mult, lvl));
+                let canAfford = game.coins >= cost;
+
+                let card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div>
+                        <div style="font-weight:800;">${item.name} (Ур. ${lvl})</div>
+                        <div style="font-size:11px; color:#94a3b8;">${item.desc}</div>
+                    </div>
+                    <button class="card-btn" ${canAfford ? '' : 'disabled'} onclick="buyUpgrade('${item.id}', ${cost})">
+                        🪙 ${cost}
+                    </button>
+                `;
                 container.appendChild(card);
             });
         }
-        function buyUpgrade(id) {
-            const item = SHOP_ITEMS.find(i => i.id === id); let lvl = item.getLevel(); let cost = Math.floor(item.baseCost * Math.pow(item.costMult, lvl));
-            if (game.coins >= cost) { game.coins -= cost; item.setLevel(lvl + 1); playSound('buy'); renderShop(); updateUI(); }
+
+        function buyUpgrade(id, cost) {
+            if (game.coins >= cost) {
+                game.coins -= cost;
+                if (id === 'tapPower') game.tapPowerLevel++;
+                if (id === 'brain') game.brainLevel++;
+                if (id === 'bot') game.botLevel++;
+                renderShop();
+                updateUI();
+            }
         }
 
         function renderEvolution() {
-            const container = document.getElementById('evolution-list-container'); container.innerHTML = ''; let currentFormIdx = getCurrentFormIndex();
-            NOOB_FORMS.forEach((form, idx) => {
-                let isUnlocked = game.unlockedForms.includes(idx); let isCurrent = idx === currentFormIdx;
-                const card = document.createElement('div'); card.className = `border rounded-2xl p-3.5 flex items-center gap-3.5 ${isCurrent ? 'bg-amber-500/10 border-amber-500/50' : isUnlocked ? 'bg-slate-900 border-slate-800' : 'bg-slate-950/50 border-slate-900 opacity-60'}`;
-                card.innerHTML = `<div class="w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black text-white" style="background: ${form.color}">${idx+1}</div><div class="flex-1"><div class="flex items-center gap-2"><span class="font-bold text-sm text-slate-200">${form.name}</span>${isCurrent ? '<span class="text-[10px] bg-amber-500 text-slate-950 font-black px-2 py-0.5 rounded">АКТИВНА</span>' : ''}</div><div class="text-xs text-slate-400 mt-0.5">${isUnlocked ? 'Открыто' : `Требуется: ${form.cost.toLocaleString()} монет`}</div></div>`;
-                container.appendChild(card);
-            });
-        }
-        function checkUnlocks() {
+            let container = document.getElementById('evolution-list-container');
+            container.innerHTML = '';
             let currentIdx = getCurrentFormIndex();
-            if (!game.unlockedForms.includes(currentIdx)) { game.unlockedForms.push(currentIdx); showEvolutionModal(NOOB_FORMS[currentIdx].name); }
-        }
-        function showEvolutionModal(formName) { document.getElementById('modal-form-desc').innerText = `Вы открыли новую форму: ${formName}!`; document.getElementById('evolution-modal').classList.remove('hidden'); }
-        function closeEvolutionModal() { document.getElementById('evolution-modal').classList.add('hidden'); }
 
-        function renderAchievements() {
-            const container = document.getElementById('achievements-list-container'); container.innerHTML = '';
-            ACHIEVEMENTS.forEach(ach => {
-                let isCompleted = game.achievements[ach.id] || ach.check();
-                if(isCompleted && !game.achievements[ach.id]) { game.achievements[ach.id] = true; game.coins += ach.reward; }
-                const card = document.createElement('div'); card.className = `bg-slate-900 border ${isCompleted ? 'border-cyan-500/40 bg-cyan-500/5' : 'border-slate-800'} rounded-2xl p-3.5 flex items-center justify-between`;
-                card.innerHTML = `<div><div class="font-bold text-sm text-slate-200">${ach.name}</div><div class="text-xs text-slate-400">${ach.desc}</div></div><div class="text-xs font-bold px-3 py-1.5 rounded-xl ${isCompleted ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40' : 'bg-slate-800 text-slate-500'}">${isCompleted ? 'Выполнено' : `🎁 ${ach.reward}`}</div>`;
-                container.appendChild(card);
-            });
-        }
+            NOOB_FORMS.forEach((form, idx) => {
+                let isCurrent = idx === currentIdx;
+                let isUnlocked = game.totalCoinsEarned >= form.cost;
 
-        function claimDailyBonus() {
-            let now = Date.now(); let dayMs = 24 * 60 * 60 * 1000;
-            if (now - game.lastDailyBonus >= dayMs) {
-                game.lastDailyBonus = now; let reward = 1000 * (game.unlockedForms.length + 1);
-                game.coins += reward; game.totalCoinsEarned += reward; alert(`Бонус получен: ${reward.toLocaleString()} монет!`); updateStatsUI(); saveGame();
-            } else { alert('Бонус доступен раз в 24 часа!'); }
-        }
-        function updateStatsUI() {
-            document.getElementById('stat-total-taps').innerText = game.totalTaps.toLocaleString();
-            document.getElementById('stat-total-coins').innerText = game.totalCoinsEarned.toLocaleString();
-            document.getElementById('stat-total-crits').innerText = game.totalCrits;
-            document.getElementById('stat-unlocked-forms').innerText = `${game.unlockedForms.length} / ${NOOB_FORMS.length}`;
-        }
-        function updateUI() {
-            document.getElementById('coin-counter').innerText = Math.floor(game.coins).toLocaleString();
-            document.getElementById('cps-counter').innerText = `+${getCPS().toFixed(1)} /сек`;
-            document.getElementById('tap-power-display').innerText = `+${getTapPower()}`;
-            let currentIdx = getCurrentFormIndex(); let form = NOOB_FORMS[currentIdx];
-            document.getElementById('current-form-title').innerText = form.name; document.getElementById('header-form-name').innerText = form.name;
-            let nextForm = NOOB_FORMS[currentIdx + 1]; let percent = 100;
-            if (nextForm) { percent = Math.min(100, Math.max(0, ((game.totalCoinsEarned - form.cost) / (nextForm.cost - form.cost)) * 100)); }
-            document.getElementById('header-form-percent').innerText = `${Math.floor(percent)}%`; document.getElementById('evolution-progress-bar').style.width = `${percent}%`;
-        }
-
-        setInterval(() => {
-            let cps = getCPS();
-            if (cps > 0) { game.coins += cps; game.totalCoinsEarned += cps; checkUnlocks(); updateUI(); }
-        }, 1000);
-
-        function saveGame() { localStorage.setItem('noobClickerSave_v4', JSON.stringify(game)); }
-        function loadGame() {
-            const saved = localStorage.getItem('noobClickerSave_v4');
-            if (saved) { try { game = { ...game, ...JSON.parse(saved) }; } catch(e) {} }
-        }
-        function resetGame() {
-            if (confirm('Сбросить весь прогресс?')) { localStorage.removeItem('noobClickerSave_v4'); location.reload(); }
-        }
-
-        setInterval(saveGame, 10000); loadGame(); updateUI();
-    </script>
-</body>
-</html>
-
+                let card = document.createElement('div');
+                card.className = 'card';
+                card.style.opacity = isUnlocked ? '1' : '0.5';
+                card.innerHTML = `
+                    <div>
+                        <div style="font-weight:800;">${form.name} ${isCurrent ? '⭐' : ''}</div>
+                        <div style="font-size:11px; color:#94a3b8;">${isUnlocked ? 'Разблокировано' :
