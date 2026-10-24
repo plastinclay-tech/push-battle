@@ -125,8 +125,10 @@
         let canvasElement = document.getElementById("outputCanvas");
         let canvasCtx = canvasElement.getContext("2d");
 
-        let pushupState = 0; // 0 = ВЕРХ, 1 = ВНИЗ
-        let lastStateChangeTime = 0;
+        // Конечный автомат состояний (FSM) и переменные стабилизации
+        let pushupState = 'UP'; // 'UP', 'DESCENDING', 'BOTTOM', 'ASCENDING'
+        let frameCounter = 0;
+        const requiredFrames = 2; // Требуемое число кадров для подтверждения состояния
 
         const bosses = [
             { name: "Сквернословный Орк", emoji: "👹", hp: 100 },
@@ -207,8 +209,10 @@
                     } else {
                         clearInterval(prepInterval);
                         isReadyToFight = true;
-                        statusMsg.innerText = "🔥 Бой идёт! Отжимайтесь!";
+                        statusMsg.innerText = "🔥 Примите упор лёжа!";
                         document.getElementById("poseStateText").innerText = "ВЕРХ";
+                        pushupState = 'UP';
+                        frameCounter = 0;
                     }
                 }, 1000);
 
@@ -236,21 +240,55 @@
                 const rightElbow = landmarks[14];
                 const leftWrist = landmarks[15];
                 const rightWrist = landmarks[16];
+                const leftHip = landmarks[23];
+                const rightHip = landmarks[24];
 
-                // Мягкая проверка видимости: сетка рисуется всегда, когда видны плечи и руки
+                // Проверка базовой видимости плеч и рук
                 const isVisible = leftShoulder && rightShoulder && leftElbow && rightElbow && leftWrist && rightWrist &&
                                   leftShoulder.visibility > 0.15 && rightShoulder.visibility > 0.15;
 
                 if (isVisible) {
+                    // НАДЁЖНАЯ ПРОВЕРКА ПЛАНКИ (Защита от сидения и тряски телефона)
+                    let isPlank = false;
+                    if (leftHip && rightHip && leftHip.visibility > 0.2 && rightHip.visibility > 0.2) {
+                        const shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
+                        const hipMidY = (leftHip.y + rightHip.y) / 2;
+                        const shoulderMidX = (leftShoulder.x + rightShoulder.x) / 2;
+                        const hipMidX = (leftHip.x + rightHip.x) / 2;
+
+                        const deltaY = Math.abs(hipMidY - shoulderMidY);
+                        const deltaX = Math.abs(hipMidX - shoulderMidX);
+                        const bodyAngle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
+
+                        // Если угол тела меньше 45 градусов — корпус расположен горизонтально (упор лёжа)
+                        isPlank = bodyAngle < 45;
+                    } else {
+                        // Если бёдра скрыты из-за близкого кадра, проверяем стабильную ширину плеч
+                        const shoulderWidth = Math.abs(leftShoulder.x - rightShoulder.x);
+                        isPlank = shoulderWidth > 0.22;
+                    }
+
+                    if (!isPlank) {
+                        document.getElementById("statusMsg").innerText = "⚠️ ПРИНИМИТЕ УПОР ЛЁЖА!";
+                        document.getElementById("poseStateText").innerText = "НЕ ПЛАНКА";
+                        pushupState = 'UP';
+                        frameCounter = 0;
+                        canvasCtx.restore();
+                        return;
+                    }
+
                     document.getElementById("statusMsg").innerText = "🔥 Отжимайтесь!";
                     
-                    // Рисуем стабильный каркас плеч и рук
+                    // Рисуем скелет
                     drawSkeletonMesh(leftShoulder, rightShoulder, leftElbow, rightElbow, leftWrist, rightWrist);
 
+                    // Вычисляем углы обеих рук
                     const leftAngle = calculateAngle(leftShoulder, leftElbow, leftWrist);
                     const rightAngle = calculateAngle(rightShoulder, rightElbow, rightWrist);
+                    const avgAngle = (leftAngle + rightAngle) / 2;
 
-                    processPushupState(leftAngle, rightAngle);
+                    // Обработка конечного автомата состояний (FSM)
+                    processFSM(avgAngle);
                 } else {
                     document.getElementById("statusMsg").innerText = "⚠️ Держите руки и плечи в кадре";
                     document.getElementById("poseStateText").innerText = "ПОИСК";
@@ -270,7 +308,7 @@
         }
 
         function drawSkeletonMesh(ls, rs, le, re, lw, rw) {
-            const color = pushupState === 1 ? "#ef4444" : "#a855f7";
+            const color = pushupState === 'BOTTOM' || pushupState === 'DESCENDING' ? "#ef4444" : "#a855f7";
 
             const connections = [
                 [ls, rs], // Линия плеч
@@ -300,31 +338,73 @@
             });
         }
 
-        // Подсчёт при сгибании обеих рук
-        function processPushupState(leftAngle, rightAngle) {
-            const now = Date.now();
+        // Строгий конечный автомат (FSM) для точного подсчета полного цикла отжимания
+        function processFSM(avgAngle) {
             const stateText = document.getElementById("poseStateText");
-            const cooldown = 350;
 
-            const bothDown = leftAngle < 100 && rightAngle < 100;
-            const bothUp = leftAngle > 118 && rightAngle > 118;
-
-            if (bothUp) {
-                if (pushupState === 1 && (now - lastStateChangeTime > cooldown)) {
-                    pushupState = 0;
-                    lastStateChangeTime = now;
-                    triggerHit(15, "ОТЖИМАНИЕ! 🔥");
+            switch (pushupState) {
+                case 'UP':
                     stateText.innerText = "ВЕРХ";
                     stateText.className = "text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded font-mono border border-emerald-800";
-                    return;
-                }
-                pushupState = 0;
-                stateText.innerText = "ВЕРХ";
-                stateText.className = "text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded font-mono border border-emerald-800";
-            } else if (bothDown) {
-                pushupState = 1;
-                stateText.innerText = "ВНИЗ";
-                stateText.className = "text-[10px] px-2 py-0.5 bg-red-950 text-red-400 rounded font-mono border border-red-800";
+                    if (avgAngle < 110) {
+                        frameCounter++;
+                        if (frameCounter >= requiredFrames) {
+                            pushupState = 'DESCENDING';
+                            frameCounter = 0;
+                        }
+                    } else {
+                        frameCounter = 0;
+                    }
+                    break;
+
+                case 'DESCENDING':
+                    stateText.innerText = "ОПУСКАНИЕ";
+                    stateText.className = "text-[10px] px-2 py-0.5 bg-amber-950 text-amber-400 rounded font-mono border border-amber-800";
+                    if (avgAngle <= 95) {
+                        frameCounter++;
+                        if (frameCounter >= requiredFrames) {
+                            pushupState = 'BOTTOM';
+                            frameCounter = 0;
+                        }
+                    } else if (avgAngle > 125) {
+                        pushupState = 'UP';
+                        frameCounter = 0;
+                    } else {
+                        frameCounter = 0;
+                    }
+                    break;
+
+                case 'BOTTOM':
+                    stateText.innerText = "НИЗ";
+                    stateText.className = "text-[10px] px-2 py-0.5 bg-red-950 text-red-400 rounded font-mono border border-red-800";
+                    if (avgAngle > 105) {
+                        frameCounter++;
+                        if (frameCounter >= requiredFrames) {
+                            pushupState = 'ASCENDING';
+                            frameCounter = 0;
+                        }
+                    } else {
+                        frameCounter = 0;
+                    }
+                    break;
+
+                case 'ASCENDING':
+                    stateText.innerText = "ПОДЪЁМ";
+                    stateText.className = "text-[10px] px-2 py-0.5 bg-blue-950 text-blue-400 rounded font-mono border border-blue-800";
+                    if (avgAngle >= 125) {
+                        frameCounter++;
+                        if (frameCounter >= requiredFrames) {
+                            pushupState = 'UP';
+                            frameCounter = 0;
+                            triggerHit(15, "ОТЖИМАНИЕ! 🔥");
+                        }
+                    } else if (avgAngle < 90) {
+                        pushupState = 'BOTTOM';
+                        frameCounter = 0;
+                    } else {
+                        frameCounter = 0;
+                    }
+                    break;
             }
         }
 
