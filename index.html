@@ -1,456 +1,991 @@
+```html
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pushup Legends</title>
-    <!-- Tailwind CSS -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>НУБОКЛИКЕР — Мемный Кликер</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Библиотеки MediaPipe Pose -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+    <!-- FontAwesome icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Yandex Games SDK -->
+    <script src="https://yandex.ru/games/sdk/v2"></script>
     <style>
-        body {
-            background-color: #0f172a;
-            color: #f8fafc;
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800;900&display=swap');
+
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
-            min-height: 100dvh;
-            margin: 0;
-            box-sizing: border-box;
         }
-        .boss-shake {
-            animation: shake 0.3s ease-in-out;
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background: #090a0f;
+            color: #ffffff;
+            overflow-x: hidden;
+            height: 100vh;
+            height: 100dvh;
         }
-        @keyframes shake {
-            0%, 100% { transform: translate(0, 0); }
-            20% { transform: translate(-8px, 4px); }
-            40% { transform: translate(8px, -4px); }
-            60% { transform: translate(-6px, -2px); }
-            80% { transform: translate(6px, 2px); }
+
+        /* Neon Glow Effects */
+        .neon-glow-cyan {
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.4), inset 0 0 10px rgba(6, 182, 212, 0.2);
         }
-        .damage-float {
+        .neon-glow-gold {
+            box-shadow: 0 0 20px rgba(234, 179, 8, 0.5), inset 0 0 10px rgba(234, 179, 8, 0.2);
+        }
+        .neon-glow-purple {
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.5);
+        }
+        .text-glow-gold {
+            text-shadow: 0 0 12px rgba(234, 179, 8, 0.8);
+        }
+
+        /* Character Click Pulse */
+        .character-btn {
+            transition: transform 0.08s ease-out, filter 0.15s ease;
+            cursor: pointer;
+        }
+        .character-btn:active {
+            transform: scale(0.91) rotate(-2deg);
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(56, 189, 248, 0.5);
+            border-radius: 8px;
+        }
+
+        /* Floating Click Text Animation */
+        @keyframes floatUpFade {
+            0% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(0.8) translateY(0);
+            }
+            50% {
+                transform: translate(-50%, -50%) scale(1.25) translateY(-40px);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(1) translateY(-80px);
+            }
+        }
+        .floating-number {
             position: absolute;
-            animation: floatUp 0.8s ease-out forwards;
             pointer-events: none;
             font-weight: 900;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            animation: floatUpFade 0.85s forwards ease-out;
+            z-index: 50;
         }
-        @keyframes floatUp {
-            0% { opacity: 1; transform: translateY(0) scale(0.8); }
-            100% { opacity: 0; transform: translateY(-70px) scale(1.3); }
+
+        /* Background Particle Effect */
+        #particleCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Aura Glow Animation */
+        @keyframes auraPulse {
+            0%, 100% { transform: scale(1); opacity: 0.6; }
+            50% { transform: scale(1.12); opacity: 0.95; }
+        }
+        .aura-effect {
+            animation: auraPulse 2.5s infinite ease-in-out;
+        }
+
+        /* Smooth Tab Transitions */
+        .tab-panel {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+        }
+        .tab-panel.active {
+            display: block;
+            opacity: 1;
         }
     </style>
 </head>
-<body class="flex flex-col justify-between min-h-[100dvh] p-3 select-none">
+<body class="flex flex-col items-center justify-between min-h-screen bg-slate-950 text-slate-100 select-none overflow-hidden">
 
-    <!-- ВЕРХНЯЯ ПАНЕЛЬ: БОСС И ЗДОРОВЬЕ -->
-    <div id="battleHeader" class="w-full bg-slate-900/90 border border-slate-800 rounded-xl p-3 shadow-xl backdrop-blur-md shrink-0">
-        <div class="flex justify-between items-center mb-1.5">
-            <div>
-                <h1 id="bossName" class="text-base font-bold tracking-wide text-red-400">🌿 Терновый Слизень</h1>
-                <p id="bossLevelText" class="text-[11px] text-slate-400">Этап 2 — Солнечный луг</p>
+    <!-- Canvas background for particles -->
+    <canvas id="particleCanvas"></canvas>
+
+    <!-- App Container -->
+    <div id="app" class="relative z-10 w-full max-w-md h-full flex flex-col justify-between p-3 sm:p-4 pb-16 sm:pb-20 overflow-hidden">
+
+        <!-- Top Header Stats Bar -->
+        <header class="bg-slate-900/80 backdrop-blur-md rounded-2xl p-3 border border-slate-800 neon-glow-cyan flex flex-col gap-2">
+            <!-- Balance & Click Strength -->
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <div class="w-10 h-10 rounded-full bg-amber-500/20 border border-amber-400 flex items-center justify-center text-amber-400 text-xl font-bold">
+                        🪙
+                    </div>
+                    <div>
+                        <div class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Монеты</div>
+                        <div id="coinsDisplay" class="text-2xl font-black text-amber-400 text-glow-gold leading-none">0</div>
+                    </div>
+                </div>
+
+                <!-- Income per sec -->
+                <div class="text-right">
+                    <div class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Доход в сек</div>
+                    <div id="cpsDisplay" class="text-lg font-bold text-cyan-400">+0 /сек</div>
+                </div>
             </div>
-            <div class="text-right">
-                <span id="bossHpText" class="text-lg font-black text-red-500">66</span>
-                <span id="bossMaxHpText" class="text-[11px] text-slate-500">/ 66 HP</span>
+
+            <!-- Progress Bar to Next Evolution Form -->
+            <div class="mt-1">
+                <div class="flex justify-between items-center text-xs text-slate-300 font-medium mb-1">
+                    <span id="currentFormName" class="text-cyan-300 font-bold">Форма: 1. Обычный нуб</span>
+                    <span id="evolutionProgressText" class="text-slate-400">0%</span>
+                </div>
+                <div class="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+                    <div id="evolutionProgressBar" class="h-full bg-gradient-to-r from-cyan-500 to-purple-500 transition-all duration-300 rounded-full" style="width: 0%"></div>
+                </div>
             </div>
+        </header>
+
+        <!-- Dynamic Event / Boost Alert Box -->
+        <div id="boostBanner" class="hidden my-2 bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 p-2 rounded-xl text-center shadow-lg animate-bounce border border-pink-300/50">
+            <span id="boostBannerText" class="font-extrabold text-xs sm:text-sm text-white tracking-wide">🔥 МЕМНЫЙ БУСТ! x3 на 10 сек!</span>
         </div>
 
-        <!-- Полоса здоровья босса -->
-        <div class="w-full bg-slate-800 h-3 rounded-full overflow-hidden p-0.5 border border-slate-700/50">
-            <div id="bossHpBar" class="bg-gradient-to-r from-red-600 to-amber-500 h-full rounded-full transition-all duration-300" style="width: 100%;"></div>
-        </div>
-    </div>
+        <!-- Main Character Clicker Area -->
+        <main class="flex-1 flex flex-col items-center justify-center relative my-2 min-h-[220px]">
+            <!-- Aura background effect for unlocked forms -->
+            <div id="characterAura" class="aura-effect absolute w-48 h-48 sm:w-56 sm:h-56 rounded-full bg-cyan-500/20 blur-2xl pointer-events-none"></div>
 
-    <!-- ЦЕНТРАЛЬНАЯ ЧАСТЬ: ВИДЕО И АВАТАР -->
-    <div id="gameContainer" class="relative flex-1 my-2 flex items-center justify-center bg-slate-950 rounded-xl overflow-hidden border border-slate-800 shadow-inner min-h-[260px]">
-        <!-- Аватар босса (в режиме ожидания/подготовки) -->
-        <div id="bossAvatar" class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center z-10 transition-opacity duration-300">
-            <div class="w-24 h-24 bg-emerald-950/40 rounded-full flex items-center justify-center border-2 border-emerald-600/50 mb-3 shadow-[0_0_20px_rgba(16,185,129,0.2)]">
-                <span class="text-5xl">🟢</span>
+            <!-- Clickable Character Container -->
+            <div id="characterWrapper" class="relative">
+                <div id="characterBtn" class="character-btn relative w-44 h-44 sm:w-52 sm:h-52 rounded-full bg-slate-900/60 border-4 border-cyan-500/50 flex items-center justify-center shadow-2xl backdrop-blur-sm hover:border-cyan-400 transition-all">
+                    <!-- Character Emoji Display -->
+                    <span id="characterEmoji" class="text-8xl sm:text-9xl filter drop-shadow-[0_10px_10px_rgba(0,0,0,0.8)] select-none">👶</span>
+                </div>
             </div>
-            <p id="statusMsg" class="text-xs text-slate-300 font-medium max-w-[240px]">Запуск камеры...</p>
-        </div>
 
-        <!-- Видео с камеры -->
-        <video id="webcam" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover transform -scale-x-100 opacity-0 transition-opacity duration-500"></video>
-        
-        <!-- Холст скелета (зелёная сетка как на референсе) -->
-        <canvas id="outputCanvas" class="absolute inset-0 w-full h-full object-cover transform -scale-x-100 pointer-events-none z-20"></canvas>
-
-        <!-- Всплывающий урон -->
-        <div id="floatingContainer" class="absolute inset-0 pointer-events-none z-30 overflow-hidden"></div>
-    </div>
-
-    <!-- ЭКРАН ПОБЕДЫ (СКРЫТ ПО УМОЛЧАНИЮ) -->
-    <div id="victoryScreen" class="absolute inset-0 bg-slate-950/95 z-50 flex flex-col items-center justify-center p-6 text-center hidden">
-        <div class="w-20 h-20 bg-amber-500/20 rounded-full flex items-center justify-center border-2 border-amber-500 mb-4 animate-bounce">
-            <span class="text-4xl">🏆</span>
-        </div>
-        <h2 class="text-2xl font-black text-amber-400 mb-1">ПОБЕДА</h2>
-        <p id="victoryTitle" class="text-sm text-slate-300 mb-4">Цветущий Грибник повержен!</p>
-        
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 w-full max-w-xs mb-4 flex justify-around text-center">
-            <div>
-                <p id="vicPushups" class="text-lg font-black text-amber-400">3</p>
-                <p class="text-[10px] text-slate-400 uppercase">Отжимания</p>
+            <!-- Stats Badge below character -->
+            <div class="mt-4 bg-slate-900/90 border border-slate-800 rounded-full px-4 py-1.5 flex items-center gap-2 text-xs font-semibold text-slate-300 shadow-md">
+                <span>Сила тапа:</span>
+                <span id="tapPowerDisplay" class="text-amber-400 font-bold">+1</span>
             </div>
-            <div>
-                <p id="vicTime" class="text-lg font-black text-blue-400">0:16</p>
-                <p class="text-[10px] text-slate-400 uppercase">Время</p>
-            </div>
-            <div>
-                <p id="vicXp" class="text-lg font-black text-emerald-400">+76</p>
-                <p class="text-[10px] text-slate-400 uppercase">XP</p>
-            </div>
-        </div>
+        </main>
 
-        <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3 w-full max-w-xs mb-6 text-left">
-            <p class="text-[10px] text-slate-400 uppercase mb-1">Добыча — Обычный</p>
-            <p class="text-sm font-bold text-indigo-300">✨ Счастливый камешек</p>
-            <p class="text-[11px] text-slate-500">АТК 0 / ЗАЩ 0 / КРИТ 3%</p>
-        </div>
+        <!-- Bottom Modal Area / Active Tab Content Panel -->
+        <section id="modalSection" class="relative z-20">
+            <!-- Modal Container (Overlay sliding up) -->
+            <div id="activeModal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-md z-40 flex items-end justify-center p-0 sm:p-4">
+                <div class="w-full max-w-md bg-slate-900 border-t sm:border border-slate-800 rounded-t-3xl sm:rounded-2xl max-h-[75vh] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-200">
+                    
+                    <!-- Modal Header -->
+                    <div class="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-900/90 sticky top-0 z-10">
+                        <h2 id="modalTitle" class="text-lg font-black text-cyan-400 tracking-wide flex items-center gap-2">
+                            <!-- Title & Icon injected via JS -->
+                        </h2>
+                        <button id="closeModalBtn" class="w-8 h-8 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center hover:bg-slate-700 hover:text-white transition">
+                            <i class="fa-solid fa-xmark text-lg"></i>
+                        </button>
+                    </div>
 
-        <button onclick="nextQuest()" class="w-full max-w-xs bg-gradient-to-r from-amber-500 to-yellow-600 font-bold text-slate-950 py-3 rounded-xl shadow-lg active:scale-95 transition-all text-sm">
-            Продолжить квест
-        </button>
-    </div>
+                    <!-- Modal Body Content -->
+                    <div class="p-4 overflow-y-auto space-y-3 flex-1">
+                        <!-- Shop Content Tab -->
+                        <div id="tab-shop" class="tab-panel space-y-3">
+                            <div id="shopList" class="space-y-2">
+                                <!-- Shop cards dynamically inserted here -->
+                            </div>
+                        </div>
 
-    <!-- НИЖНЯЯ ПАНЕЛЬ СЧЁТЧИКА -->
-    <div class="w-full bg-slate-900/90 border border-slate-800 rounded-xl p-3 shadow-xl backdrop-blur-md flex flex-col gap-2 shrink-0">
-        <div class="flex justify-between items-center bg-slate-950/60 px-3 py-2 rounded-lg border border-slate-800/80">
-            <div class="flex items-center gap-2">
-                <span class="text-lg">💪</span>
-                <span id="pushupCount" class="text-xl font-black text-amber-400">0</span>
-                <span class="text-[11px] text-slate-400">повторов</span>
+                        <!-- Achievements Tab -->
+                        <div id="tab-achievements" class="tab-panel space-y-3">
+                            <div id="achievementsList" class="space-y-2">
+                                <!-- Achievement items inserted here -->
+                            </div>
+                        </div>
+
+                        <!-- Forms / Evolution Collection Tab -->
+                        <div id="tab-forms" class="tab-panel space-y-3">
+                            <div id="formsList" class="grid grid-cols-1 gap-2">
+                                <!-- Evolution Forms inserted here -->
+                            </div>
+                        </div>
+
+                        <!-- Stats & Settings Tab -->
+                        <div id="tab-stats" class="tab-panel space-y-4">
+                            <!-- Game Stats List -->
+                            <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800 space-y-2 text-xs">
+                                <div class="flex justify-between text-slate-300">
+                                    <span>Всего тапов:</span>
+                                    <span id="statTotalTaps" class="font-bold text-cyan-400">0</span>
+                                </div>
+                                <div class="flex justify-between text-slate-300">
+                                    <span>Заработано монет за всё время:</span>
+                                    <span id="statTotalEarned" class="font-bold text-amber-400">0</span>
+                                </div>
+                                <div class="flex justify-between text-slate-300">
+                                    <span>Критических ударов:</span>
+                                    <span id="statCriticalHits" class="font-bold text-purple-400">0</span>
+                                </div>
+                                <div class="flex justify-between text-slate-300">
+                                    <span>Открыто форм нуба:</span>
+                                    <span id="statFormsUnlocked" class="font-bold text-emerald-400">1 / 10</span>
+                                </div>
+                            </div>
+
+                            <!-- Daily Bonus Action -->
+                            <div class="bg-gradient-to-r from-amber-500/10 to-orange-500/10 p-3 rounded-xl border border-amber-500/30 flex items-center justify-between">
+                                <div>
+                                    <div class="text-sm font-bold text-amber-400">Ежедневный бонус</div>
+                                    <div class="text-xs text-slate-400">Получи бесплатные монеты раз в 24ч!</div>
+                                </div>
+                                <button id="dailyBonusBtn" class="bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black text-xs px-3 py-2 rounded-xl shadow-md hover:brightness-110 active:scale-95 transition">
+                                    Забрать
+                                </button>
+                            </div>
+
+                            <!-- Audio & Sound Toggle -->
+                            <div class="flex items-center justify-between bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+                                <span class="text-xs font-bold text-slate-300">Звуковые эффекты:</span>
+                                <button id="soundToggleBtn" class="px-3 py-1.5 rounded-lg bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 font-bold text-xs flex items-center gap-2">
+                                    <i class="fa-solid fa-volume-high"></i> <span>Вкл</span>
+                                </button>
+                            </div>
+
+                            <!-- Manual Save & Reset Buttons -->
+                            <div class="pt-2 flex gap-2">
+                                <button id="manualSaveBtn" class="flex-1 bg-slate-800 hover:bg-slate-700 text-xs font-bold py-2.5 rounded-xl text-slate-200 transition border border-slate-700">
+                                    <i class="fa-solid fa-floppy-disk mr-1"></i> Сохранить
+                                </button>
+                                <button id="resetProgressBtn" class="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/40 text-xs font-bold py-2.5 rounded-xl transition">
+                                    <i class="fa-solid fa-rotate-left mr-1"></i> Сброс
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <button id="calibBtn" onclick="startCalibration()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition-all shadow">
-                🎯 Калибровка
+        </section>
+
+        <!-- Bottom Navigation Bar -->
+        <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 p-2 z-30 flex justify-around items-center rounded-t-2xl shadow-2xl">
+            <button data-tab="tab-shop" class="nav-btn active flex flex-col items-center gap-1 text-slate-400 hover:text-cyan-400 transition px-3 py-1">
+                <i class="fa-solid fa-store text-lg"></i>
+                <span class="text-[10px] font-bold">Магазин</span>
             </button>
+            <button data-tab="tab-forms" class="nav-btn flex flex-col items-center gap-1 text-slate-400 hover:text-cyan-400 transition px-3 py-1">
+                <i class="fa-solid fa-dna text-lg"></i>
+                <span class="text-[10px] font-bold">Эволюция</span>
+            </button>
+            <button data-tab="tab-achievements" class="nav-btn flex flex-col items-center gap-1 text-slate-400 hover:text-cyan-400 transition px-3 py-1">
+                <i class="fa-solid fa-trophy text-lg"></i>
+                <span class="text-[10px] font-bold">Ачивки</span>
+            </button>
+            <button data-tab="tab-stats" class="nav-btn flex flex-col items-center gap-1 text-slate-400 hover:text-cyan-400 transition px-3 py-1">
+                <i class="fa-solid fa-chart-pie text-lg"></i>
+                <span class="text-[10px] font-bold">Инфо</span>
+            </button>
+        </nav>
+
+        <!-- Global Toast Alert Message Container -->
+        <div id="toastNotification" class="fixed top-5 left-1/2 -translate-x-1/2 bg-slate-900/95 border border-cyan-500/80 text-cyan-300 font-bold text-xs px-4 py-2.5 rounded-full shadow-2xl pointer-events-none transition-all duration-300 opacity-0 -translate-y-4 z-50 flex items-center gap-2">
+            <i class="fa-solid fa-bell text-amber-400"></i>
+            <span id="toastText">Уведомление</span>
         </div>
-        <div class="text-center">
-            <span id="statusSubMsg" class="text-[11px] text-slate-400">Поставьте телефон на пол и нажмите калибровку</span>
-        </div>
+
     </div>
 
-    <!-- ЛОГИКА ИИ И ИГРЫ -->
+    <!-- MAIN GAME ENGINE JAVASCRIPT -->
     <script>
-        let bossLevel = 1;
-        let maxHp = 66;
-        let currentHp = 66;
-        let pushups = 0;
-        let startTime = null;
-        
-        let pose = null;
-        let camera = null;
-        let webcamRunning = false;
-        let isReadyToFight = false;
-        let isCalibrating = false;
+        /* ==========================================================================
+           1. INITIALIZATION & SOUND SYNTHESIS ENGINE (WEB AUDIO API)
+           ========================================================================== */
+        class SoundEngine {
+            constructor() {
+                this.audioCtx = null;
+                this.enabled = true;
+            }
 
-        // Калибровочные переменные под конкретного пользователя
-        let calibMinAngle = 180;
-        let calibMaxAngle = 0;
-        let userBottomThreshold = 100;
-        let userTopThreshold = 120;
-        let calibStage = 0; // 0 - ждем нижнюю точку, 1 - ждем верхнюю
+            init() {
+                if (!this.audioCtx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContext) {
+                        this.audioCtx = new AudioContext();
+                    }
+                }
+            }
 
-        let videoElement = document.getElementById("webcam");
-        let canvasElement = document.getElementById("outputCanvas");
-        let canvasCtx = canvasElement.getContext("2d");
+            playTone(freq, type, duration, vol = 0.1) {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.audioCtx) return;
 
-        let pushupState = 0; // 0 = ВЕРХ, 1 = ВНИЗ
-        let lastStateChangeTime = 0;
-        let smoothedAngle = 180;
+                try {
+                    const osc = this.audioCtx.createOscillator();
+                    const gain = this.audioCtx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, this.audioCtx.currentTime);
+                    gain.gain.setValueAtTime(vol, this.audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, this.audioCtx.currentTime + duration);
 
-        const bosses = [
-            { name: "Терновый Слизень", emoji: "🟢", hp: 66, desc: "Этап 2 — Солнечный луг", loot: "Тканевые обмотки" },
-            { name: "Цветущий Грибник", emoji: "🍄", hp: 100, desc: "Этап 3 — Лесная опушка", loot: "Счастливый камешек" },
-            { name: "Огненный Голем", emoji: "🔥", hp: 150, desc: "Этап 4 — Вулканическая пещера", loot: "Угрюмый щит" }
+                    osc.connect(gain);
+                    gain.connect(this.audioCtx.destination);
+
+                    osc.start();
+                    osc.stop(this.audioCtx.currentTime + duration);
+                } catch (e) {
+                    // Audio context errors ignored gracefully
+                }
+            }
+
+            playClick() {
+                this.playTone(400 + Math.random() * 150, 'sine', 0.08, 0.12);
+            }
+
+            playCrit() {
+                this.playTone(800, 'triangle', 0.15, 0.2);
+                setTimeout(() => this.playTone(1200, 'square', 0.2, 0.15), 50);
+            }
+
+            playBuy() {
+                this.playTone(523.25, 'sine', 0.1, 0.15); // C5
+                setTimeout(() => this.playTone(659.25, 'sine', 0.1, 0.15), 80); // E5
+                setTimeout(() => this.playTone(783.99, 'sine', 0.15, 0.15), 160); // G5
+            }
+
+            playEvolve() {
+                const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    setTimeout(() => this.playTone(freq, 'sine', 0.2, 0.15), idx * 60);
+                });
+            }
+        }
+
+        const sounds = new SoundEngine();
+
+        /* ==========================================================================
+           2. GAME DATA STRUCTURE & CONSTANTS
+           ========================================================================== */
+        const EVOLUTION_FORMS = [
+            { id: 1, name: "Обычный нуб", emoji: "👶", reqCoins: 0, aura: "rgba(6, 182, 212, 0.2)" },
+            { id: 2, name: "Нуб в очках", emoji: "🤓", reqCoins: 250, aura: "rgba(59, 130, 246, 0.3)" },
+            { id: 3, name: "Качок-нуб", emoji: "🏋️‍♂️", reqCoins: 2500, aura: "rgba(34, 197, 94, 0.3)" },
+            { id: 4, name: "Нуб-горилла", emoji: "🦍", reqCoins: 25000, aura: "rgba(234, 179, 8, 0.3)" },
+            { id: 5, name: "Нуб-демон", emoji: "👿", reqCoins: 150000, aura: "rgba(239, 68, 68, 0.4)" },
+            { id: 6, name: "Кибер-нуб", emoji: "🤖", reqCoins: 1000000, aura: "rgba(168, 85, 247, 0.4)" },
+            { id: 7, name: "Нуб-дракон", emoji: "🐉", reqCoins: 7500000, aura: "rgba(249, 115, 22, 0.4)" },
+            { id: 8, name: "Золотой нуб", emoji: "👑", reqCoins: 50000000, aura: "rgba(250, 204, 21, 0.5)" },
+            { id: 9, name: "Космический нуб", emoji: "👽", reqCoins: 350000000, aura: "rgba(14, 165, 233, 0.5)" },
+            { id: 10, name: "Император нубов", emoji: "🪐", reqCoins: 2500000000, aura: "rgba(236, 72, 153, 0.6)" }
         ];
 
-        function initPose() {
-            if (typeof Pose === "undefined") return;
+        const UPGRADE_TYPES = [
+            { id: 'ironFinger', name: 'Железный палец', desc: '+1 к силе тапа', baseCost: 15, costMult: 1.15, icon: 'fa-hand-pointer' },
+            { id: 'noobBrain', name: 'Мозг нуба', desc: '+2% ко всему доходу', baseCost: 100, costMult: 1.22, icon: 'fa-brain' },
+            { id: 'noobBot', name: 'Нубо-бот', desc: '+1 монета в секунду', baseCost: 50, costMult: 1.18, icon: 'fa-robot' },
+            { id: 'doubleTap', name: 'Двойной тап', desc: '+50% к эффективности тапа', baseCost: 500, costMult: 1.35, icon: 'fa-bolt' },
+            { id: 'autoTap', name: 'Авто-тап', desc: 'Автоматически тапает раз в сек', baseCost: 2000, costMult: 1.4, icon: 'fa-computer-mouse' },
+            { id: 'incomeMult', name: 'Множитель дохода', desc: 'Удваивает базовый запредельный доход', baseCost: 15000, costMult: 2.2, icon: 'fa-chart-line' },
+            { id: 'megaUpgrade', name: 'Мега-прокачка', desc: 'Мощный космический буст (+500/сек)', baseCost: 100000, costMult: 2.5, icon: 'fa-rocket' }
+        ];
 
-            pose = new Pose({
-                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
-            });
+        const ACHIEVEMENTS = [
+            { id: 'click_100', name: 'Первые шаги', desc: 'Сделать 100 тапов', reward: 100, req: (state) => state.totalTaps >= 100 },
+            { id: 'click_1000', name: 'Тапер-маньяк', desc: 'Сделать 1,000 тапов', reward: 2500, req: (state) => state.totalTaps >= 1000 },
+            { id: 'coins_1k', name: 'Первая заначка', desc: 'Накопить 1,000 монет за все время', reward: 500, req: (state) => state.totalEarned >= 1000 },
+            { id: 'coins_1m', name: 'Миллионер нубов', desc: 'Заработать 1,000,000 монет', reward: 100000, req: (state) => state.totalEarned >= 1000000 },
+            { id: 'form_3', name: 'Мускулы раскачаны', desc: 'Открыть форму "Качок-нуб"', reward: 5000, req: (state) => state.currentFormIndex >= 2 },
+            { id: 'form_6', name: 'Технологичный подход', desc: 'Открыть форму "Кибер-нуб"', reward: 200000, req: (state) => state.currentFormIndex >= 5 },
+            { id: 'crit_20', name: 'Удача на твоей стороне', desc: 'Выбить 20 критических тапов', reward: 3000, req: (state) => state.criticalHits >= 20 }
+        ];
 
-            pose.setOptions({
-                modelComplexity: 1,
-                smoothLandmarks: true,
-                minDetectionConfidence: 0.35,
-                minTrackingConfidence: 0.35
-            });
+        /* Default Initial Player State */
+        let gameState = {
+            coins: 0,
+            totalEarned: 0,
+            totalTaps: 0,
+            criticalHits: 0,
+            currentFormIndex: 0,
+            upgrades: {
+                ironFinger: 0,
+                noobBrain: 0,
+                noobBot: 0,
+                doubleTap: 0,
+                autoTap: 0,
+                incomeMult: 0,
+                megaUpgrade: 0
+            },
+            achievementsClaimed: [],
+            lastDailyBonus: 0,
+            soundEnabled: true
+        };
 
-            pose.onResults(onPoseResults);
+        // Active Meme Boost State
+        let activeBoostMultiplier = 1;
+        let boostTimer = null;
+
+        /* ==========================================================================
+           3. GAME ENGINE LOGIC & CALCULATIONS
+           ========================================================================== */
+        function getTapPower() {
+            let base = 1 + gameState.upgrades.ironFinger;
+            let doubleTapBonus = 1 + (gameState.upgrades.doubleTap * 0.5);
+            let brainBonus = 1 + (gameState.upgrades.noobBrain * 0.02);
+            let multiplierBonus = Math.pow(2, gameState.upgrades.incomeMult);
+
+            let power = base * doubleTapBonus * brainBonus * multiplierBonus * activeBoostMultiplier;
+            return Math.max(1, Math.floor(power));
         }
 
-        // Автозапуск камеры сразу при открытии страницы без лишних кнопок
-        async function autoStartCamera() {
-            try {
-                if (!pose) initPose();
+        function getCoinsPerSecond() {
+            let baseAuto = (gameState.upgrades.noobBot * 1) + 
+                           (gameState.upgrades.autoTap * getTapPower()) + 
+                           (gameState.upgrades.megaUpgrade * 500);
 
-                camera = new Camera(videoElement, {
-                    onFrame: async () => {
-                        if (webcamRunning && pose) {
-                            try { await pose.send({ image: videoElement }); } catch(e){}
-                        }
-                    },
-                    width: 640,
-                    height: 480
+            let brainBonus = 1 + (gameState.upgrades.noobBrain * 0.02);
+            let multiplierBonus = Math.pow(2, gameState.upgrades.incomeMult);
+
+            let cps = baseAuto * brainBonus * multiplierBonus * activeBoostMultiplier;
+            return Math.floor(cps);
+        }
+
+        function getUpgradeCost(type) {
+            const config = UPGRADE_TYPES.find(u => u.id === type);
+            const count = gameState.upgrades[type] || 0;
+            return Math.floor(config.baseCost * Math.pow(config.costMult, count));
+        }
+
+        /* Number Formatting Utility */
+        function formatNumber(num) {
+            if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
+            if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+            if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
+            return Math.floor(num).toLocaleString('ru-RU');
+        }
+
+        /* ==========================================================================
+           4. PERSISTENCE (LOCAL STORAGE & YANDEX GAMES SDK MOCK)
+           ========================================================================== */
+        const SAVE_KEY = 'NOOB_CLICKER_GAME_SAVE_V1';
+
+        function saveGame() {
+            try {
+                localStorage.setItem(SAVE_KEY, JSON.stringify(gameState));
+                if (window.ysdk) {
+                    window.ysdk.getPlayerData().then(player => {
+                        player.setData({ gameState: JSON.stringify(gameState) });
+                    }).catch(() => {});
+                }
+            } catch (e) {
+                console.warn('Unable to save to localStorage');
+            }
+        }
+
+        function loadGame() {
+            try {
+                const data = localStorage.getItem(SAVE_KEY);
+                if (data) {
+                    const parsed = JSON.parse(data);
+                    gameState = { ...gameState, ...parsed };
+                    sounds.enabled = gameState.soundEnabled;
+                }
+            } catch (e) {
+                console.warn('Failed to parse saved game');
+            }
+        }
+
+        function hardResetGame() {
+            if (confirm('Ты точно хочешь сбросить весь прогресс? Это действие нельзя отменить!')) {
+                localStorage.removeItem(SAVE_KEY);
+                location.reload();
+            }
+        }
+
+        /* Yandex Games SDK Integration Wrapper */
+        function initYandexGamesSDK() {
+            if (window.YaGames) {
+                window.YaGames.init().then(ysdk => {
+                    window.ysdk = ysdk;
+                    ysdk.getPlayerData().then(player => {
+                        player.getData(['gameState']).then(data => {
+                            if (data.gameState) {
+                                gameState = { ...gameState, ...JSON.parse(data.gameState) };
+                                updateUI();
+                            }
+                        });
+                    }).catch(() => {});
+                }).catch(err => {
+                    console.log('Yandex SDK initialization fallback (local dev)');
+                });
+            }
+        }
+
+        /* ==========================================================================
+           5. UI RENDER ENGINE
+           ========================================================================== */
+        const coinsDisplay = document.getElementById('coinsDisplay');
+        const cpsDisplay = document.getElementById('cpsDisplay');
+        const tapPowerDisplay = document.getElementById('tapPowerDisplay');
+        const characterEmoji = document.getElementById('characterEmoji');
+        const currentFormName = document.getElementById('currentFormName');
+        const evolutionProgressBar = document.getElementById('evolutionProgressBar');
+        const evolutionProgressText = document.getElementById('evolutionProgressText');
+        const characterAura = document.getElementById('characterAura');
+
+        function updateUI() {
+            // Update Top Balance & Income
+            coinsDisplay.textContent = formatNumber(gameState.coins);
+            cpsDisplay.textContent = '+' + formatNumber(getCoinsPerSecond()) + ' /сек';
+            tapPowerDisplay.textContent = '+' + formatNumber(getTapPower());
+
+            // Current Character Form Evaluation
+            checkEvolutionProgress();
+
+            const currentForm = EVOLUTION_FORMS[gameState.currentFormIndex];
+            characterEmoji.textContent = currentForm.emoji;
+            currentFormName.textContent = `Форма ${currentForm.id}. ${currentForm.name}`;
+            characterAura.style.backgroundColor = currentForm.aura;
+
+            // Progress to next evolution
+            const nextForm = EVOLUTION_FORMS[gameState.currentFormIndex + 1];
+            if (nextForm) {
+                const prevReq = currentForm.reqCoins;
+                const totalTarget = nextForm.reqCoins - prevReq;
+                const currentProgress = Math.max(0, gameState.totalEarned - prevReq);
+                const percent = Math.min(100, Math.floor((currentProgress / totalTarget) * 100));
+
+                evolutionProgressBar.style.width = percent + '%';
+                evolutionProgressText.textContent = percent + '%';
+            } else {
+                evolutionProgressBar.style.width = '100%';
+                evolutionProgressText.textContent = 'МАКС';
+            }
+
+            // Stats Update
+            document.getElementById('statTotalTaps').textContent = gameState.totalTaps.toLocaleString();
+            document.getElementById('statTotalEarned').textContent = formatNumber(gameState.totalEarned);
+            document.getElementById('statCriticalHits').textContent = gameState.criticalHits.toLocaleString();
+            document.getElementById('statFormsUnlocked').textContent = `${gameState.currentFormIndex + 1} / ${EVOLUTION_FORMS.length}`;
+
+            // Refresh Dynamic Tab Lists
+            renderShop();
+            renderAchievements();
+            renderFormsList();
+        }
+
+        function checkEvolutionProgress() {
+            let highestUnlocked = gameState.currentFormIndex;
+            for (let i = 0; i < EVOLUTION_FORMS.length; i++) {
+                if (gameState.totalEarned >= EVOLUTION_FORMS[i].reqCoins) {
+                    highestUnlocked = i;
+                }
+            }
+
+            if (highestUnlocked > gameState.currentFormIndex) {
+                gameState.currentFormIndex = highestUnlocked;
+                sounds.playEvolve();
+                showToast(`🎉 Новая эволюция: ${EVOLUTION_FORMS[highestUnlocked].name}!`);
+            }
+        }
+
+        /* Render Shop Cards */
+        function renderShop() {
+            const shopList = document.getElementById('shopList');
+            shopList.innerHTML = '';
+
+            UPGRADE_TYPES.forEach(upg => {
+                const cost = getUpgradeCost(upg.id);
+                const currentLevel = gameState.upgrades[upg.id] || 0;
+                const canAfford = gameState.coins >= cost;
+
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-2xl border flex items-center justify-between transition ${
+                    canAfford ? 'bg-slate-800/80 border-slate-700 hover:border-cyan-500/50' : 'bg-slate-900/40 border-slate-800 opacity-60'
+                }`;
+
+                card.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 text-base">
+                            <i class="fa-solid ${upg.icon}"></i>
+                        </div>
+                        <div>
+                            <div class="font-bold text-xs text-slate-100">${upg.name} <span class="text-cyan-400 font-extrabold">Ур. ${currentLevel}</span></div>
+                            <div class="text-[10px] text-slate-400">${upg.desc}</div>
+                        </div>
+                    </div>
+                    <button class="buy-btn px-3 py-2 rounded-xl text-xs font-black transition ${
+                        canAfford ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md active:scale-95' : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                    }" data-upgrade="${upg.id}">
+                        🪙 ${formatNumber(cost)}
+                    </button>
+                `;
+
+                card.querySelector('.buy-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    buyUpgrade(upg.id);
                 });
 
-                await camera.start();
-                webcamRunning = true;
-                
-                videoElement.classList.remove("opacity-0");
-                document.getElementById("bossAvatar").classList.add("opacity-0");
-                document.getElementById("statusMsg").innerText = "Примите упор лёжа и нажмите «Калибровка»";
-
-            } catch (err) {
-                console.error("Ошибка камеры:", err);
-                alert("Разрешите доступ к камере в браузере.");
-            }
-        }
-
-        function startCalibration() {
-            if (!webcamRunning) return;
-            isCalibrating = true;
-            isReadyToFight = false;
-            calibMinAngle = 180;
-            calibMaxAngle = 0;
-            calibStage = 0;
-            
-            document.getElementById("statusMsg").innerText = "🎯 Сделайте 1 полное отжимание для калибровки!";
-            document.getElementById("statusSubMsg").innerText = "Опуститесь вниз и поднимитесь обратно";
-            document.getElementById("calibBtn").innerText = "Идет калибровка...";
-            document.getElementById("calibBtn").classList.add("animate-pulse", "bg-amber-600");
-        }
-
-        function onPoseResults(results) {
-            if (!webcamRunning) return;
-
-            canvasElement.width = videoElement.videoWidth || 640;
-            canvasElement.height = videoElement.videoHeight || 480;
-
-            canvasCtx.save();
-            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-
-            if (results.poseLandmarks) {
-                const lm = results.poseLandmarks;
-                
-                const ls = lm[11], rs = lm[12]; // Плечи
-                const le = lm[13], re = lm[14]; // Локти
-                const lw = lm[15], rw = lm[16]; // Запястья
-
-                const isVisible = ls && rs && le && re && lw && rw &&
-                                  ls.visibility > 0.2 && rs.visibility > 0.2;
-
-                if (isVisible) {
-                    // Отрисовка фирменной зеленой сетки скелета
-                    drawGreenSkeleton(lm);
-
-                    const leftAngle = calculateAngle(ls, le, lw);
-                    const rightAngle = calculateAngle(rs, re, rw);
-                    const rawAngle = (leftAngle + rightAngle) / 2;
-
-                    // Сглаживание углов
-                    smoothedAngle = smoothedAngle === 180 ? rawAngle : (smoothedAngle * 0.4 + rawAngle * 0.6);
-
-                    // Режим калибровки по 1 отжиманию
-                    if (isCalibrating) {
-                        processCalibration(smoothedAngle);
-                        canvasCtx.restore();
-                        return;
-                    }
-
-                    // Боевой режим после успешной калибровки
-                    if (isReadyToFight) {
-                        document.getElementById("statusSubMsg").innerText = "🔥 Бой идет! Отжимайтесь глубоко!";
-                        processPushupState(smoothedAngle);
-                    }
-                } else {
-                    if (isReadyToFight) {
-                        document.getElementById("statusSubMsg").innerText = "⚠️ Держите руки и плечи в кадре телефона!";
-                    }
-                }
-            }
-            canvasCtx.restore();
-        }
-
-        function processCalibration(angle) {
-            if (angle < calibMinAngle) calibMinAngle = angle;
-            if (angle > calibMaxAngle) calibMaxAngle = angle;
-
-            if (calibStage === 0 && angle < 110) {
-                calibStage = 1;
-                document.getElementById("statusMsg").innerText = "⬇️ Отлично! Теперь поднимайтесь вверх...";
-            } else if (calibStage === 1 && angle > 120) {
-                // Успешная калибровка под индивидуальную амплитуду
-                userBottomThreshold = Math.min(Math.max(calibMinAngle + 6, 85), 110);
-                userTopThreshold = Math.max(Math.min(calibMaxAngle - 6, 135), 115);
-
-                isCalibrating = false;
-                isReadyToFight = true;
-                startTime = Date.now();
-
-                document.getElementById("statusMsg").innerText = "⚔️ БИТВА НАЧАЛАСЬ!";
-                document.getElementById("calibBtn").innerText = "Откалибровано ✓";
-                document.getElementById("calibBtn").classList.remove("animate-pulse", "bg-amber-600");
-                document.getElementById("calibBtn").classList.add("bg-emerald-700");
-            }
-        }
-
-        function calculateAngle(a, b, c) {
-            if (!a || !b || !c) return 180;
-            let radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
-            let angle = Math.abs(radians * 180.0 / Math.PI);
-            if (angle > 180.0) angle = 360.0 - angle;
-            return angle;
-        }
-
-        // Фирменная зелёная сетка скелета как в референсном приложении
-        function drawGreenSkeleton(lm) {
-            const color = isCalibrating ? "#eab308" : (pushupState === 1 ? "#ef4444" : "#10b981");
-
-            const connections = [
-                [lm[11], lm[12]], // Плечевой пояс
-                [lm[11], lm[13]], [lm[13], lm[15]], // Левая рука
-                [lm[12], lm[14]], [lm[14], lm[16]], // Правая рука
-                [lm[11], lm[23]], [lm[12], lm[24]], [lm[23], lm[24]] // Корпус и бёдра
-            ];
-
-            if (lm[25] && lm[26]) {
-                connections.push([lm[23], lm[25]], [lm[24], lm[26]]);
-            }
-
-            canvasCtx.lineWidth = 3;
-            canvasCtx.strokeStyle = color;
-
-            connections.forEach(([p1, p2]) => {
-                if (p1 && p2 && (p1.visibility === undefined || p1.visibility > 0.2) && (p2.visibility === undefined || p2.visibility > 0.2)) {
-                    canvasCtx.beginPath();
-                    canvasCtx.moveTo(p1.x * canvasElement.width, p1.y * canvasElement.height);
-                    canvasCtx.lineTo(p2.x * canvasElement.width, p2.y * canvasElement.height);
-                    canvasCtx.stroke();
-                }
-            });
-
-            const joints = [11, 12, 13, 14, 15, 16, 23, 24];
-            if (lm[25]) joints.push(25, 26);
-
-            joints.forEach(idx => {
-                let p = lm[idx];
-                if (p && (p.visibility === undefined || p.visibility > 0.2)) {
-                    canvasCtx.beginPath();
-                    canvasCtx.arc(p.x * canvasElement.width, p.y * canvasElement.height, 4, 0, 2 * Math.PI);
-                    canvasCtx.fillStyle = "#ffffff";
-                    canvasCtx.fill();
-                }
+                shopList.appendChild(card);
             });
         }
 
-        function processPushupState(angle) {
+        /* Render Achievements List */
+        function renderAchievements() {
+            const achList = document.getElementById('achievementsList');
+            achList.innerHTML = '';
+
+            ACHIEVEMENTS.forEach(ach => {
+                const isClaimed = gameState.achievementsClaimed.includes(ach.id);
+                const canClaim = !isClaimed && ach.req(gameState);
+
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-2xl border flex items-center justify-between ${
+                    isClaimed ? 'bg-slate-950/40 border-emerald-500/30 opacity-70' :
+                    canClaim ? 'bg-amber-500/10 border-amber-500/50' : 'bg-slate-900/40 border-slate-800 opacity-60'
+                }`;
+
+                card.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl ${isClaimed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'} flex items-center justify-center text-base">
+                            <i class="fa-solid ${isClaimed ? 'fa-check' : 'fa-trophy'}"></i>
+                        </div>
+                        <div>
+                            <div class="font-bold text-xs text-slate-100">${ach.name}</div>
+                            <div class="text-[10px] text-slate-400">${ach.desc}</div>
+                            <div class="text-[10px] text-amber-400 font-bold mt-0.5">+🪙 ${formatNumber(ach.reward)}</div>
+                        </div>
+                    </div>
+                    ${canClaim ? `
+                        <button class="claim-ach-btn px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition active:scale-95" data-id="${ach.id}">
+                            Забрать
+                        </button>
+                    ` : `
+                        <span class="text-[10px] font-bold ${isClaimed ? 'text-emerald-400' : 'text-slate-500'}">
+                            ${isClaimed ? 'Выполнено' : 'Заперто'}
+                        </span>
+                    `}
+                `;
+
+                if (canClaim) {
+                    card.querySelector('.claim-ach-btn').addEventListener('click', () => {
+                        claimAchievement(ach);
+                    });
+                }
+
+                achList.appendChild(card);
+            });
+        }
+
+        /* Render Evolution Forms Collection */
+        function renderFormsList() {
+            const formsList = document.getElementById('formsList');
+            formsList.innerHTML = '';
+
+            EVOLUTION_FORMS.forEach((form, idx) => {
+                const isUnlocked = idx <= gameState.currentFormIndex;
+
+                const card = document.createElement('div');
+                card.className = `p-2.5 rounded-xl border flex items-center justify-between ${
+                    isUnlocked ? 'bg-slate-800/60 border-cyan-500/40' : 'bg-slate-950/40 border-slate-800 opacity-50'
+                }`;
+
+                card.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <span class="text-3xl">${form.emoji}</span>
+                        <div>
+                            <div class="font-bold text-xs text-slate-200">${form.id}. ${form.name}</div>
+                            <div class="text-[10px] text-slate-400">${
+                                isUnlocked ? 'Открыто' : `Нужно монет: ${formatNumber(form.reqCoins)}`
+                            }</div>
+                        </div>
+                    </div>
+                    ${isUnlocked ? '<i class="fa-solid fa-circle-check text-cyan-400 text-sm"></i>' : '<i class="fa-solid fa-lock text-slate-600 text-sm"></i>'}
+                `;
+
+                formsList.appendChild(card);
+            });
+        }
+
+        /* Floating Number Popup Animation */
+        function spawnFloatingText(x, y, text, isCrit = false) {
+            const el = document.createElement('div');
+            el.className = `floating-number ${isCrit ? 'text-amber-300 text-2xl text-glow-gold' : 'text-cyan-300 text-lg'}`;
+            el.style.left = `${x}px`;
+            el.style.top = `${y}px`;
+            el.textContent = text;
+
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 850);
+        }
+
+        /* Toast Notification Helper */
+        function showToast(msg) {
+            const toast = document.getElementById('toastNotification');
+            document.getElementById('toastText').textContent = msg;
+            toast.classList.remove('opacity-0', '-translate-y-4');
+            toast.classList.add('opacity-100', 'translate-y-0');
+
+            setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', '-translate-y-4');
+            }, 2500);
+        }
+
+        /* ==========================================================================
+           6. GAME ACTIONS & HANDLERS
+           ========================================================================== */
+        function handleTap(e) {
+            sounds.init();
+            gameState.totalTaps++;
+
+            // Critical Tap Chance (10%)
+            const isCrit = Math.random() < 0.10;
+            let earned = getTapPower();
+            if (isCrit) {
+                earned *= 5;
+                gameState.criticalHits++;
+                sounds.playCrit();
+            } else {
+                sounds.playClick();
+            }
+
+            gameState.coins += earned;
+            gameState.totalEarned += earned;
+
+            // Coordinates for floating text
+            let x = e.clientX;
+            let y = e.clientY;
+            if (!x || !y) {
+                const rect = document.getElementById('characterBtn').getBoundingClientRect();
+                x = rect.left + rect.width / 2;
+                y = rect.top + rect.height / 2;
+            }
+
+            spawnFloatingText(x, y, `+${formatNumber(earned)}${isCrit ? ' КРИТ!' : ''}`, isCrit);
+            updateUI();
+        }
+
+        function buyUpgrade(type) {
+            const cost = getUpgradeCost(type);
+            if (gameState.coins >= cost) {
+                gameState.coins -= cost;
+                gameState.upgrades[type] = (gameState.upgrades[type] || 0) + 1;
+                sounds.playBuy();
+                saveGame();
+                updateUI();
+            }
+        }
+
+        function claimAchievement(ach) {
+            if (!gameState.achievementsClaimed.includes(ach.id)) {
+                gameState.achievementsClaimed.push(ach.id);
+                gameState.coins += ach.reward;
+                gameState.totalEarned += ach.reward;
+                sounds.playBuy();
+                showToast(`🏆 Достижение: ${ach.name}! +🪙${formatNumber(ach.reward)}`);
+                saveGame();
+                updateUI();
+            }
+        }
+
+        function claimDailyBonus() {
             const now = Date.now();
-            const cooldown = 350;
+            const cooldown = 24 * 60 * 60 * 1000;
 
-            if (angle > userTopThreshold) {
-                if (pushupState === 1 && (now - lastStateChangeTime > cooldown)) {
-                    pushupState = 0;
-                    lastStateChangeTime = now;
-                    triggerHit(16); // Урон боссу за отжимание
-                    return;
+            if (now - gameState.lastDailyBonus >= cooldown) {
+                const reward = Math.max(500, getTapPower() * 200);
+                gameState.coins += reward;
+                gameState.totalEarned += reward;
+                gameState.lastDailyBonus = now;
+                sounds.playBuy();
+                showToast(`🎁 Ежедневный бонус забран! +🪙${formatNumber(reward)}`);
+                saveGame();
+                updateUI();
+            } else {
+                const remainingHours = Math.ceil((cooldown - (now - gameState.lastDailyBonus)) / (1000 * 60 * 60));
+                showToast(`⏳ Бонус доступен через ${remainingHours} ч.`);
+            }
+        }
+
+        /* Random Meme Boost Event System */
+        function triggerRandomEvent() {
+            if (activeBoostMultiplier > 1) return; // Already active
+
+            activeBoostMultiplier = 3;
+            sounds.playCrit();
+
+            const banner = document.getElementById('boostBanner');
+            banner.classList.remove('hidden');
+
+            showToast("🔥 МЕМНЫЙ БУСТ! Доход x3 на 10 секунд!");
+
+            setTimeout(() => {
+                activeBoostMultiplier = 1;
+                banner.classList.add('hidden');
+                updateUI();
+            }, 10000);
+        }
+
+        // Schedule random events every 45-90 seconds
+        setInterval(() => {
+            if (Math.random() < 0.4) {
+                triggerRandomEvent();
+            }
+        }, 50000);
+
+        /* ==========================================================================
+           7. MODAL NAVIGATION SYSTEM
+           ========================================================================== */
+        const modalTitles = {
+            'tab-shop': '<i class="fa-solid fa-store"></i> Магазин Улучшений',
+            'tab-forms': '<i class="fa-solid fa-dna"></i> Эволюция Нуба',
+            'tab-achievements': '<i class="fa-solid fa-trophy"></i> Достижения',
+            'tab-stats': '<i class="fa-solid fa-chart-pie"></i> Статистика и Настройки'
+        };
+
+        function openModal(tabId) {
+            sounds.init();
+            const modal = document.getElementById('activeModal');
+            const titleEl = document.getElementById('modalTitle');
+
+            // Hide all tab panels
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('text-cyan-400'));
+
+            // Show selected panel
+            const activePanel = document.getElementById(tabId);
+            if (activePanel) {
+                activePanel.classList.add('active');
+                titleEl.innerHTML = modalTitles[tabId] || 'Меню';
+                modal.classList.remove('hidden');
+
+                // Highlight Nav Icon
+                const activeNav = document.querySelector(`[data-tab="${tabId}"]`);
+                if (activeNav) activeNav.classList.add('text-cyan-400');
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('activeModal').classList.add('hidden');
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('text-cyan-400'));
+        }
+
+        /* ==========================================================================
+           8. BACKGROUND PARTICLE CANVAS ENGINE
+           ========================================================================== */
+        function initParticles() {
+            const canvas = document.getElementById('particleCanvas');
+            const ctx = canvas.getContext('2d');
+
+            function resize() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            window.addEventListener('resize', resize);
+            resize();
+
+            const particles = Array.from({ length: 25 }, () => ({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * 2 + 1,
+                speedY: Math.random() * 0.5 + 0.2,
+                opacity: Math.random() * 0.5 + 0.2
+            }));
+
+            function animateParticles() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = 'rgba(6, 182, 212, 0.4)';
+
+                particles.forEach(p => {
+                    p.y -= p.speedY;
+                    if (p.y < 0) p.y = canvas.height;
+
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.globalAlpha = p.opacity;
+                    ctx.fill();
+                });
+
+                requestAnimationFrame(animateParticles);
+            }
+            animateParticles();
+        }
+
+        /* ==========================================================================
+           9. EVENT LISTENERS & LOOP INITIALIZATION
+           ========================================================================== */
+        window.onload = function () {
+            loadGame();
+            initYandexGamesSDK();
+            initParticles();
+
+            // Main Character Click Listener
+            const charBtn = document.getElementById('characterBtn');
+            charBtn.addEventListener('click', handleTap);
+            charBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault(); // Prevents double click on mobile touch
+                handleTap(e.touches[0]);
+            }, { passive: false });
+
+            // Navigation Buttons
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.addEventListener('click', () => openModal(btn.dataset.tab));
+            });
+
+            document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+
+            // Settings Controls
+            document.getElementById('manualSaveBtn').addEventListener('click', () => {
+                saveGame();
+                showToast("💾 Игра успешно сохранена!");
+            });
+
+            document.getElementById('resetProgressBtn').addEventListener('click', hardResetGame);
+
+            document.getElementById('dailyBonusBtn').addEventListener('click', claimDailyBonus);
+
+            const soundToggleBtn = document.getElementById('soundToggleBtn');
+            soundToggleBtn.addEventListener('click', () => {
+                sounds.enabled = !sounds.enabled;
+                gameState.soundEnabled = sounds.enabled;
+                soundToggleBtn.innerHTML = sounds.enabled ?
+                    '<i class="fa-solid fa-volume-high"></i> <span>Вкл</span>' :
+                    '<i class="fa-solid fa-volume-xmark"></i> <span>Выкл</span>';
+                saveGame();
+            });
+
+            // Automatic Income Timer (Every 1 second)
+            setInterval(() => {
+                const cps = getCoinsPerSecond();
+                if (cps > 0) {
+                    gameState.coins += cps;
+                    gameState.totalEarned += cps;
+                    updateUI();
                 }
-                pushupState = 0;
-            } else if (angle < userBottomThreshold) {
-                pushupState = 1;
-            }
-        }
+            }, 1000);
 
-        function triggerHit(damageAmount) {
-            currentHp -= damageAmount;
-            if (currentHp < 0) currentHp = 0;
+            // Auto-save timer (Every 10 seconds)
+            setInterval(saveGame, 10000);
 
-            pushups++;
-            document.getElementById("pushupCount").innerText = pushups;
-
-            updateBossUI();
-            triggerEffects(`-${damageAmount}`);
-
-            if (currentHp === 0) {
-                isReadyToFight = false;
-                showVictoryScreen();
-            }
-        }
-
-        function manualHit() {
-            if (!isReadyToFight) {
-                // Если бой еще не начат, тестовый удар тоже засчитывает калибровку
-                isReadyToFight = true;
-                startTime = Date.now();
-                document.getElementById("statusMsg").innerText = "⚔️ БИТВА НАЧАЛАСЬ!";
-            }
-            triggerHit(16);
-        }
-
-        function updateBossUI() {
-            const hpBar = document.getElementById("bossHpBar");
-            const hpText = document.getElementById("bossHpText");
-            const percentage = (currentHp / maxHp) * 100;
-            
-            hpBar.style.width = percentage + "%";
-            hpText.innerText = currentHp;
-        }
-
-        function triggerEffects(text) {
-            const container = document.getElementById("gameContainer");
-            container.classList.add("boss-shake");
-            setTimeout(() => container.classList.remove("boss-shake"), 300);
-
-            const floatCont = document.getElementById("floatingContainer");
-            const dmgEl = document.createElement("div");
-            dmgEl.className = "damage-float text-red-500 text-2xl";
-            dmgEl.innerText = text;
-            dmgEl.style.left = Math.random() * 50 + 25 + "%";
-            dmgEl.style.top = Math.random() * 30 + 30 + "%";
-            floatCont.appendChild(dmgEl);
-
-            setTimeout(() => dmgEl.remove(), 800);
-        }
-
-        function showVictoryScreen() {
-            const elapsedTime = Math.round((Date.now() - startTime) / 1000);
-            const minutes = Math.floor(elapsedTime / 60);
-            const seconds = elapsedTime % 60;
-            const timeString = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-
-            document.getElementById("vicPushups").innerText = pushups;
-            document.getElementById("vicTime").innerText = timeString;
-            document.getElementById("vicXp").innerText = "+" + (pushups * 25);
-            document.getElementById("victoryTitle").innerText = bosses[(bossLevel - 1) % bosses.length].name + " повержен!";
-            document.getElementById("victoryScreen").classList.remove("hidden");
-        }
-
-        function nextQuest() {
-            bossLevel++;
-            let bIndex = (bossLevel - 1) % bosses.length;
-            maxHp = bosses[bIndex].hp;
-            currentHp = maxHp;
-
-            document.getElementById("bossName").innerText = bosses[bIndex].emoji + " " + bosses[bIndex].name;
-            document.getElementById("bossLevelText").innerText = bosses[bIndex].desc;
-            document.getElementById("bossMaxHpText").innerText = "/ " + maxHp + " HP";
-            
-            updateBossUI();
-            document.getElementById("victoryScreen").classList.add("hidden");
-            isReadyToFight = true;
-            startTime = Date.now();
-        }
-
-        window.addEventListener("DOMContentLoaded", () => {
-            autoStartCamera();
-        });
+            // Initial UI Sync
+            updateUI();
+        };
     </script>
 </body>
 </html>
+```
