@@ -6,7 +6,7 @@
     <title>Push Battle RPG</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Стабильные библиотеки MediaPipe Pose -->
+    <!-- Библиотеки MediaPipe Pose -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
     <style>
@@ -100,10 +100,10 @@
 
         <!-- Кнопки управления -->
         <div class="grid grid-cols-2 gap-2">
-            <button id="camBtn" class="bg-gradient-to-r from-blue-600 to-indigo-600 active:scale-95 text-white font-bold py-2.5 px-3 rounded-lg shadow-md transition-all text-xs flex items-center justify-center gap-1.5">
+            <button id="camBtn" onclick="toggleCamera()" class="bg-gradient-to-r from-blue-600 to-indigo-600 active:scale-95 text-white font-bold py-2.5 px-3 rounded-lg shadow-md transition-all text-xs flex items-center justify-center gap-1.5">
                 <span>📷</span> Камера
             </button>
-            <button id="testBtn" class="bg-gradient-to-r from-red-600 to-rose-600 active:scale-95 text-white font-bold py-2.5 px-3 rounded-lg shadow-md transition-all text-xs flex items-center justify-center gap-1.5">
+            <button onclick="manualHit()" class="bg-gradient-to-r from-red-600 to-rose-600 active:scale-95 text-white font-bold py-2.5 px-3 rounded-lg shadow-md transition-all text-xs flex items-center justify-center gap-1.5">
                 <span>💥</span> Тест урон
             </button>
         </div>
@@ -136,7 +136,7 @@
 
         function initPose() {
             if (typeof Pose === "undefined") {
-                document.getElementById("statusMsg").innerText = "Ошибка загрузки библиотеки. Проверьте сеть.";
+                document.getElementById("statusMsg").innerText = "Ошибка загрузки библиотеки Pose.";
                 return;
             }
 
@@ -147,8 +147,8 @@
             pose.setOptions({
                 modelComplexity: 1,
                 smoothLandmarks: true,
-                minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5
+                minDetectionConfidence: 0.3,
+                minTrackingConfidence: 0.3
             });
 
             pose.onResults(onPoseResults);
@@ -163,9 +163,7 @@
             if (webcamRunning) {
                 webcamRunning = false;
                 isReadyToFight = false;
-                if (camera) { 
-                    try { await camera.stop(); } catch(e) {}
-                }
+                if (camera) { try { await camera.stop(); } catch(e){} }
                 videoElement.classList.add("opacity-0");
                 bossAvatar.classList.remove("opacity-0");
                 statusMsg.innerText = "Камера выключена";
@@ -180,9 +178,7 @@
                 camera = new Camera(videoElement, {
                     onFrame: async () => {
                         if (webcamRunning && pose) {
-                            try {
-                                await pose.send({ image: videoElement });
-                            } catch (err) {}
+                            try { await pose.send({ image: videoElement }); } catch(e){}
                         }
                     },
                     width: 640,
@@ -211,15 +207,13 @@
                     } else {
                         clearInterval(prepInterval);
                         isReadyToFight = true;
-                        statusMsg.innerText = "🔥 Примите упор лёжа (покажите тело и ноги)!";
+                        statusMsg.innerText = "🔥 Отжимайтесь!";
                         document.getElementById("poseStateText").innerText = "ВЕРХ";
                     }
                 }, 1000);
 
             } catch (err) {
-                console.error("Ошибка доступа к камере:", err);
-                webcamRunning = false;
-                statusMsg.innerText = "Ошибка камеры";
+                console.error("Ошибка камеры:", err);
                 alert("Не удалось включить камеру. Разрешите доступ в браузере.");
             }
         }
@@ -234,60 +228,59 @@
             canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
             if (results.poseLandmarks && isReadyToFight) {
-                const landmarks = results.poseLandmarks;
+                const lm = results.poseLandmarks;
                 
-                const leftShoulder = landmarks[11];
-                const rightShoulder = landmarks[12];
-                const leftElbow = landmarks[13];
-                const rightElbow = landmarks[14];
-                const leftWrist = landmarks[15];
-                const rightWrist = landmarks[16];
-                const leftHip = landmarks[23];
-                const rightHip = landmarks[24];
-                const leftKnee = landmarks[25];
-                const rightKnee = landmarks[26];
+                const ls = lm[11], rs = lm[12]; // Плечи
+                const le = lm[13], re = lm[14]; // Локти
+                const lw = lm[15], rw = lm[16]; // Запястья
+                const lh = lm[23], rh = lm[24]; // Бёдра
 
-                const isUpperVisible = leftShoulder && rightShoulder && leftElbow && rightElbow && leftWrist && rightWrist &&
-                                      leftShoulder.visibility > 0.3 && rightShoulder.visibility > 0.3;
-                
-                // Проверка видимости бёдер и ног как в видео-референсе для исключения сидения
-                const isLegsVisible = leftHip && rightHip && leftKnee && rightKnee &&
-                                      leftHip.visibility > 0.25 && rightHip.visibility > 0.25;
+                // Мягкое условие отображения скелета — видны плечи и хотя бы одна рука
+                const isVisible = ls && rs && le && re && lw && rw &&
+                                  ls.visibility > 0.15 && rs.visibility > 0.15;
 
-                if (isUpperVisible && isLegsVisible) {
-                    // Дополнительная проверка на горизонтальность корпуса (планку)
-                    const shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
-                    const hipMidY = (leftHip.y + rightHip.y) / 2;
-                    const shoulderMidX = (leftShoulder.x + rightShoulder.x) / 2;
-                    const hipMidX = (leftHip.x + rightHip.x) / 2;
+                if (isVisible) {
+                    // Определение положения тела (отсекаем сидение перед камерой)
+                    let isHorizontal = true;
 
-                    const deltaY = Math.abs(hipMidY - shoulderMidY);
-                    const deltaX = Math.abs(hipMidX - shoulderMidX);
-                    const bodyAngle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
+                    if (lh && rh && lh.visibility > 0.2 && rh.visibility > 0.2) {
+                        const shoulderY = (ls.y + rs.y) / 2;
+                        const hipY = (lh.y + rh.y) / 2;
+                        const shoulderX = (ls.x + rs.x) / 2;
+                        const hipX = (lh.x + rh.x) / 2;
 
-                    // Если угол слишком вертикальный (сидит или стоит), блокируем
-                    if (bodyAngle > 45) {
-                        document.getElementById("statusMsg").innerText = "⚠️ ЛЯГТЕ ГОРИЗОНТАЛЬНО (ПЛАНКА)!";
+                        const dy = Math.abs(hipY - shoulderY);
+                        const dx = Math.abs(hipX - shoulderX);
+                        const bodyAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+                        // Если тело расположено вертикально (больше 50 градусов) -> блокируем
+                        if (bodyAngle > 50) {
+                            isHorizontal = false;
+                        }
+                    }
+
+                    if (!isHorizontal) {
+                        document.getElementById("statusMsg").innerText = "⚠️ ПРИНИМИТЕ УПОР ЛЁЖА!";
                         document.getElementById("poseStateText").innerText = "НЕ ПЛАНКА";
                         pushupState = 0;
+                        drawReferenceSkeleton(lm);
                         canvasCtx.restore();
                         return;
                     }
 
                     document.getElementById("statusMsg").innerText = "🔥 Бой идёт! Отжимайтесь!";
 
-                    // Отрисовка полного скелета (как в референсном видео)
-                    drawFullBodySkeleton(landmarks);
+                    // Отрисовка точной красивой сетки (как на видео!)
+                    drawReferenceSkeleton(lm);
 
-                    const leftAngle = calculateAngle(leftShoulder, leftElbow, leftWrist);
-                    const rightAngle = calculateAngle(rightShoulder, rightElbow, rightWrist);
+                    const leftAngle = calculateAngle(ls, le, lw);
+                    const rightAngle = calculateAngle(rs, re, rw);
                     const avgAngle = (leftAngle + rightAngle) / 2;
 
                     processPushupState(avgAngle);
                 } else {
-                    document.getElementById("statusMsg").innerText = "⚠️ ПОКАЖИТЕ НОГИ И ТЕЛО В КАДРЕ!";
-                    document.getElementById("poseStateText").innerText = "НЕТ НОГ";
-                    pushupState = 0;
+                    document.getElementById("statusMsg").innerText = "⚠️ Держите руки и плечи в кадре";
+                    document.getElementById("poseStateText").innerText = "ПОИСК";
                 }
             } else if (isReadyToFight) {
                 document.getElementById("poseStateText").innerText = "НЕТ ТЕЛА";
@@ -303,24 +296,27 @@
             return angle;
         }
 
-        // Отрисовка полного каркаса с суставами и линиями (как в видео)
-        function drawFullBodySkeleton(lm) {
+        // Полная отрисовка скелета с соединительными узлами (как на референсном видео)
+        function drawReferenceSkeleton(lm) {
             const color = pushupState === 1 ? "#ef4444" : "#a855f7";
 
             const connections = [
-                [lm[11], lm[12]], // Плечи
+                [lm[11], lm[12]], // Плечевой пояс
                 [lm[11], lm[13]], [lm[13], lm[15]], // Левая рука
                 [lm[12], lm[14]], [lm[14], lm[16]], // Правая рука
-                [lm[11], lm[23]], [lm[12], lm[24]], [lm[23], lm[24]], // Торс
-                [lm[23], lm[25]], [lm[25], lm[27]], // Левая нога
-                [lm[24], lm[26]], [lm[26], lm[28]]  // Правая нога
+                [lm[11], lm[23]], [lm[12], lm[24]], [lm[23], lm[24]] // Корпус и бёдра
             ];
+
+            // Если ноги попали в кадр, дорисовываем их
+            if (lm[25] && lm[26]) {
+                connections.push([lm[23], lm[25]], [lm[24], lm[26]]);
+            }
 
             canvasCtx.lineWidth = 4;
             canvasCtx.strokeStyle = color;
 
             connections.forEach(([p1, p2]) => {
-                if (p1 && p2 && p1.visibility > 0.2 && p2.visibility > 0.2) {
+                if (p1 && p2 && (p1.visibility === undefined || p1.visibility > 0.15) && (p2.visibility === undefined || p2.visibility > 0.15)) {
                     canvasCtx.beginPath();
                     canvasCtx.moveTo(p1.x * canvasElement.width, p1.y * canvasElement.height);
                     canvasCtx.lineTo(p2.x * canvasElement.width, p2.y * canvasElement.height);
@@ -328,9 +324,13 @@
                 }
             });
 
-            [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28].forEach(idx => {
+            // Точки-суставы (жёлтые кружочки)
+            const joints = [11, 12, 13, 14, 15, 16, 23, 24];
+            if (lm[25]) joints.push(25, 26);
+
+            joints.forEach(idx => {
                 let p = lm[idx];
-                if (p && p.visibility > 0.2) {
+                if (p && (p.visibility === undefined || p.visibility > 0.15)) {
                     canvasCtx.beginPath();
                     canvasCtx.arc(p.x * canvasElement.width, p.y * canvasElement.height, 5, 0, 2 * Math.PI);
                     canvasCtx.fillStyle = "#eab308";
@@ -342,9 +342,9 @@
         function processPushupState(angle) {
             const now = Date.now();
             const stateText = document.getElementById("poseStateText");
-            const cooldown = 400;
+            const cooldown = 380;
 
-            if (angle > 125) {
+            if (angle > 120) {
                 if (pushupState === 1 && (now - lastStateChangeTime > cooldown)) {
                     pushupState = 0;
                     lastStateChangeTime = now;
@@ -356,7 +356,7 @@
                 pushupState = 0;
                 stateText.innerText = "ВЕРХ";
                 stateText.className = "text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded font-mono border border-emerald-800";
-            } else if (angle < 95) {
+            } else if (angle < 98) {
                 pushupState = 1;
                 stateText.innerText = "ВНИЗ";
                 stateText.className = "text-[10px] px-2 py-0.5 bg-red-950 text-red-400 rounded font-mono border border-red-800";
@@ -427,19 +427,8 @@
             setTimeout(() => dmgEl.remove(), 800);
         }
 
-        // Безопасное подключение кнопок через DOMContentLoaded
         window.addEventListener("DOMContentLoaded", () => {
             initPose();
-
-            const camBtn = document.getElementById("camBtn");
-            if (camBtn) {
-                camBtn.addEventListener("click", toggleCamera);
-            }
-
-            const testBtn = document.getElementById("testBtn");
-            if (testBtn) {
-                testBtn.addEventListener("click", manualHit);
-            }
         });
     </script>
 </body>
