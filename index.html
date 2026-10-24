@@ -207,8 +207,8 @@
                     } else {
                         clearInterval(prepInterval);
                         isReadyToFight = true;
-                        statusMsg.innerText = "🔥 Лягте в упор лёжа!";
-                        document.getElementById("poseStateText").innerText = "ПОИСК";
+                        statusMsg.innerText = "🔥 Бой идёт! Отжимайтесь!";
+                        document.getElementById("poseStateText").innerText = "ВЕРХ";
                     }
                 }, 1000);
 
@@ -240,20 +240,20 @@
                 const rightWrist = landmarks[16];
 
                 const isVisible = leftShoulder && rightShoulder && leftElbow && rightElbow && leftWrist && rightWrist &&
-                                  leftShoulder.visibility > 0.4 && rightShoulder.visibility > 0.4;
+                                  leftShoulder.visibility > 0.3 && rightShoulder.visibility > 0.3;
 
                 if (isVisible) {
-                    // СТРОГИЙ АНТИ-ЧИТ: Проверка положения тела
+                    // Мягкий анти-чит: проверяем вертикальный разрыв с большим запасом, чтобы планка не блокировалась
                     let shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
-                    let hipMidY = (leftHip && rightHip && leftHip.visibility > 0.3 && rightHip.visibility > 0.3) 
+                    let hipMidY = (leftHip && rightHip && leftHip.visibility > 0.2 && rightHip.visibility > 0.2) 
                                   ? (leftHip.y + rightHip.y) / 2 
                                   : shoulderMidY + 0.3;
 
                     let verticalSpan = Math.abs(hipMidY - shoulderMidY);
                     
-                    // Если вертикальный разрыв между плечами и тазом большой (> 0.20), человек сидит или стоит
-                    if (verticalSpan > 0.20) {
-                        document.getElementById("statusMsg").innerText = "⚠️ СЯДЬТЕ / ЛЯГТЕ В УПОР ЛЁЖА!";
+                    // Блокируем только если человек явно сидит вертикально (разрыв > 0.38)
+                    if (verticalSpan > 0.38) {
+                        document.getElementById("statusMsg").innerText = "⚠️ ПРИМИТЕ УПОР ЛЁЖА!";
                         document.getElementById("poseStateText").innerText = "СИДИТ/СТОИТ";
                         pushupState = 0;
                         canvasCtx.restore();
@@ -265,7 +265,6 @@
                     const rightAngle = calculateAngle(rightShoulder, rightElbow, rightWrist);
                     const avgAngle = (leftAngle + rightAngle) / 2;
 
-                    // Отрисовка скелета с кругляшками на суставах
                     drawBoneAndJoint(leftShoulder, leftElbow);
                     drawBoneAndJoint(leftElbow, leftWrist);
                     drawBoneAndJoint(rightShoulder, rightElbow);
@@ -290,7 +289,6 @@
             return angle;
         }
 
-        // Отрисовка линии кости и кругляшка сустава
         function drawBoneAndJoint(p1, p2) {
             if (!p1 || !p2) return;
             const x1 = p1.x * canvasElement.width;
@@ -298,7 +296,6 @@
             const x2 = p2.x * canvasElement.width;
             const y2 = p2.y * canvasElement.height;
 
-            // Линия
             canvasCtx.beginPath();
             canvasCtx.moveTo(x1, y1);
             canvasCtx.lineTo(x2, y2);
@@ -306,7 +303,6 @@
             canvasCtx.lineWidth = 5;
             canvasCtx.stroke();
 
-            // Кругляшки на суставах
             canvasCtx.beginPath();
             canvasCtx.arc(x1, y1, 6, 0, 2 * Math.PI);
             canvasCtx.arc(x2, y2, 6, 0, 2 * Math.PI);
@@ -317,9 +313,10 @@
         function processPushupState(angle) {
             const now = Date.now();
             const stateText = document.getElementById("poseStateText");
-            const cooldown = 450;
+            const cooldown = 400;
 
-            if (angle > 140) {
+            // Снизили порог верха до 125°, чтобы повторения засчитывались даже при неполном выпрямлении рук
+            if (angle > 125) {
                 if (pushupState === 1 && (now - lastStateChangeTime > cooldown)) {
                     pushupState = 0;
                     lastStateChangeTime = now;
