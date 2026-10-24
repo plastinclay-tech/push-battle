@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Push Battle RPG</title>
-    <!-- Tailwind CSS для красивого интерфейса -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Подключаем MediaPipe Tasks Vision с надежного CDN -->
+    <!-- MediaPipe Tasks Vision -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.js" crossorigin="anonymous"></script>
     <style>
         body {
@@ -14,10 +14,9 @@
             color: #f8fafc;
             font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             touch-action: manipulation;
-            overflow: hidden;
-            height: 100vh;
+            min-height: 100dvh;
             margin: 0;
-            padding: 0;
+            box-sizing: border-box;
         }
         .boss-shake {
             animation: shake 0.3s ease-in-out;
@@ -42,35 +41,35 @@
         }
     </style>
 </head>
-<body class="flex flex-col justify-between h-screen p-4 select-none">
+<body class="flex flex-col justify-between min-h-[100dvh] p-3 select-none">
 
     <!-- ВЕРХНЯЯ ЧАСТЬ: ИНФОРМАЦИЯ О БОССЕ -->
-    <div class="w-full bg-slate-900/80 border border-slate-800 rounded-2xl p-4 shadow-xl backdrop-blur-md relative">
-        <div class="flex justify-between items-center mb-2">
+    <div class="w-full bg-slate-900/90 border border-slate-800 rounded-xl p-3 shadow-xl backdrop-blur-md shrink-0">
+        <div class="flex justify-between items-center mb-1.5">
             <div>
-                <h1 class="text-lg font-bold tracking-wide text-red-400">👹 Сквернословный Орк</h1>
-                <p class="text-xs text-slate-400">Босс уровня 1</p>
+                <h1 class="text-base font-bold tracking-wide text-red-400">👹 Сквернословный Орк</h1>
+                <p class="text-[11px] text-slate-400">Босс уровня 1</p>
             </div>
             <div class="text-right">
-                <span id="bossHpText" class="text-xl font-black text-red-500">100</span>
-                <span class="text-xs text-slate-500">/ 100 HP</span>
+                <span id="bossHpText" class="text-lg font-black text-red-500">100</span>
+                <span class="text-[11px] text-slate-500">/ 100 HP</span>
             </div>
         </div>
 
         <!-- Полоса здоровья босса -->
-        <div class="w-full bg-slate-800 h-4 rounded-full overflow-hidden p-0.5 border border-slate-700/50">
+        <div class="w-full bg-slate-800 h-3 rounded-full overflow-hidden p-0.5 border border-slate-700/50">
             <div id="bossHpBar" class="bg-gradient-to-r from-red-600 to-amber-500 h-full rounded-full transition-all duration-300" style="width: 100%;"></div>
         </div>
     </div>
 
     <!-- ЦЕНТРАЛЬНАЯ ЧАСТЬ: ВИДЕО КАМЕРЫ И АВАТАР БОССА -->
-    <div id="gameContainer" class="relative flex-1 my-3 flex items-center justify-center bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 shadow-inner">
-        <!-- Аватар босса (если камера выключена) -->
-        <div id="bossAvatar" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-10 transition-opacity duration-300">
-            <div class="w-32 h-32 bg-red-950/40 rounded-full flex items-center justify-center border-2 border-red-600/50 mb-4 shadow-[0_0_30px_rgba(239,68,68,0.2)]">
-                <span class="text-6xl">👹</span>
+    <div id="gameContainer" class="relative flex-1 my-2.5 flex items-center justify-center bg-slate-950 rounded-xl overflow-hidden border border-slate-800 shadow-inner min-h-[220px]">
+        <!-- Аватар босса -->
+        <div id="bossAvatar" class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center z-10 transition-opacity duration-300">
+            <div class="w-24 h-24 bg-red-950/40 rounded-full flex items-center justify-center border-2 border-red-600/50 mb-3 shadow-[0_0_20px_rgba(239,68,68,0.2)]">
+                <span class="text-5xl">👹</span>
             </div>
-            <p id="statusMsg" class="text-sm text-slate-400 font-medium max-w-[260px]">Нажмите «Включить камеру» или используйте тестовый удар</p>
+            <p id="statusMsg" class="text-xs text-slate-400 font-medium max-w-[240px]">Загрузка модуля ИИ...</p>
         </div>
 
         <!-- Видеопоток с камеры -->
@@ -84,9 +83,249 @@
     </div>
 
     <!-- НИЖНЯЯ ПАНЕЛЬ: СЧЁТЧИК И УПРАВЛЕНИЕ -->
-    <div class="w-full bg-slate-900/80 border border-slate-800 rounded-2xl p-4 shadow-xl backdrop-blur-md flex flex-col gap-3">
+    <div class="w-full bg-slate-900/90 border border-slate-800 rounded-xl p-3 shadow-xl backdrop-blur-md flex flex-col gap-2 shrink-0">
         
         <!-- Статистика отжиманий -->
-        <div class="flex justify-between items-center bg-slate-950/50 px-4 py-2.5 rounded-xl border border-slate-800/80">
+        <div class="flex justify-between items-center bg-slate-950/60 px-3 py-2 rounded-lg border border-slate-800/80">
             <div class="flex items-center gap-2">
+                <span class="text-lg">💪</span>
+                <span class="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">Отжимания</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span id="pushupCount" class="text-xl font-black text-amber-400">0</span>
+                <span id="poseStateText" class="text-[10px] px-2 py-0.5 bg-slate-800 rounded text-slate-400 font-mono">ОЖИДАНИЕ</span>
+            </div>
+        </div>
+
+        <!-- Кнопки управления -->
+        <div class="grid grid-cols-2 gap-2">
+            <button id="camBtn" onclick="toggleCamera()" class="bg-gradient-to-r from-blue-600 to-indigo-600 active:scale-95 text-white font-bold py-2.5 px-3 rounded-lg shadow-md transition-all text-xs flex items-center justify-center gap-1.5">
+                <span>📷</span> Камера
+            </button>
+            <button onclick="manualHit()" class="bg-gradient-to-r from-red-600 to-rose-600 active:scale-95 text-white font-bold py-2.5 px-3 rounded-lg shadow-md transition-all text-xs flex items-center justify-center gap-1.5">
+                <span>💥</span> Тест урон
+            </button>
+        </div>
+    </div>
+
+    <!-- ЛОГИКА ИГРЫ И AI -->
+    <script>
+        let maxHp = 100;
+        let currentHp = 100;
+        let pushups = 0;
+        
+        let poseLandmarker = undefined;
+        let webcamRunning = false;
+        let videoElement = document.getElementById("webcam");
+        let canvasElement = document.getElementById("outputCanvas");
+        let canvasCtx = canvasElement.getContext("2d");
+
+        let pushupState = 0; 
+        let lastStateChangeTime = 0;
+
+        async function initPoseLandmarker() {
+            const statusMsg = document.getElementById("statusMsg");
+            statusMsg.innerText = "Загрузка ИИ-модуля позы...";
+            
+            try {
+                const vision = await FilesetResolver.forVisionTasks(
+                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+                );
                 
+                poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+                    baseOptions: {
+                        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
+                        delegate: "GPU"
+                    },
+                    runningMode: "VIDEO",
+                    numPoses: 1
+                });
+                
+                statusMsg.innerText = "ИИ готов! Нажмите «Камера»";
+                console.log("MediaPipe PoseLandmarker успешно инициализирован");
+            } catch (error) {
+                console.error("Ошибка загрузки MediaPipe:", error);
+                statusMsg.innerText = "Ошибка загрузки ИИ. Проверьте интернет или VPN.";
+            }
+        }
+
+        async function toggleCamera() {
+            const btn = document.getElementById("camBtn");
+            const bossAvatar = document.getElementById("bossAvatar");
+
+            if (webcamRunning) {
+                webcamRunning = false;
+                let stream = videoElement.srcObject;
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                videoElement.srcObject = null;
+                videoElement.classList.add("opacity-0");
+                bossAvatar.classList.remove("opacity-0");
+                btn.innerHTML = "<span>📷</span> Камера";
+                document.getElementById("poseStateText").innerText = "ОТКЛ";
+                return;
+            }
+
+            if (!poseLandmarker) {
+                alert("ИИ-модуль еще загружается. Подождите пару секунд.");
+                return;
+            }
+
+            try {
+                const constraints = {
+                    video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }
+                };
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                videoElement.srcObject = stream;
+                videoElement.addEventListener("loadeddata", predictWebcam);
+                
+                webcamRunning = true;
+                videoElement.classList.remove("opacity-0");
+                bossAvatar.classList.add("opacity-0");
+                btn.innerHTML = "<span>⏹️</span> Стоп";
+            } catch (err) {
+                console.error("Ошибка доступа к камере:", err);
+                alert("Не удалось получить доступ к камере. Разрешите её использование в браузере.");
+            }
+        }
+
+        let lastVideoTime = -1;
+        async function predictWebcam() {
+            if (!webcamRunning) return;
+
+            if (videoElement.videoWidth > 0 && canvasElement.width !== videoElement.videoWidth) {
+                canvasElement.width = videoElement.videoWidth;
+                canvasElement.height = videoElement.videoHeight;
+            }
+
+            let startTimeMs = performance.now();
+            if (videoElement.currentTime !== lastVideoTime) {
+                lastVideoTime = videoElement.currentTime;
+                const results = poseLandmarker.detectForVideo(videoElement, startTimeMs);
+                
+                canvasCtx.save();
+                canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+                if (results.landmarks && results.landmarks.length > 0) {
+                    const landmarks = results.landmarks[0];
+                    
+                    const leftAngle = calculateAngle(landmarks[11], landmarks[13], landmarks[15]);
+                    const rightAngle = calculateAngle(landmarks[12], landmarks[14], landmarks[16]);
+                    const avgAngle = (leftAngle + rightAngle) / 2;
+
+                    drawSkeletonLine(landmarks[11], landmarks[13]);
+                    drawSkeletonLine(landmarks[13], landmarks[15]);
+                    drawSkeletonLine(landmarks[12], landmarks[14]);
+                    drawSkeletonLine(landmarks[14], landmarks[16]);
+
+                    processPushupState(avgAngle);
+                } else {
+                    document.getElementById("poseStateText").innerText = "НЕТ ТЕЛА";
+                }
+                canvasCtx.restore();
+            }
+
+            if (webcamRunning) {
+                window.requestAnimationFrame(predictWebcam);
+            }
+        }
+
+        function calculateAngle(a, b, c) {
+            let radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
+            let angle = Math.abs(radians * 180.0 / Math.PI);
+            if (angle > 180.0) {
+                angle = 360.0 - angle;
+            }
+            return angle;
+        }
+
+        function drawSkeletonLine(p1, p2) {
+            canvasCtx.beginPath();
+            canvasCtx.moveTo(p1.x * canvasElement.width, p1.y * canvasElement.height);
+            canvasCtx.lineTo(p2.x * canvasElement.width, p2.y * canvasElement.height);
+            canvasCtx.strokeStyle = pushupState === 1 ? "#ef4444" : "#22c55e";
+            canvasCtx.lineWidth = 4;
+            canvasCtx.stroke();
+        }
+
+        function processPushupState(angle) {
+            const now = Date.now();
+            const stateText = document.getElementById("poseStateText");
+            const cooldown = 600;
+
+            if (angle > 150) {
+                if (pushupState === 1 && (now - lastStateChangeTime > cooldown)) {
+                    pushupState = 0;
+                    lastStateChangeTime = now;
+                    triggerHit(15, "ОТЖИМАНИЕ! 🔥");
+                } else {
+                    pushupState = 0;
+                }
+                stateText.innerText = "ВЕРХ";
+                stateText.className = "text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded font-mono border border-emerald-800";
+            } else if (angle < 95) {
+                pushupState = 1;
+                stateText.innerText = "ВНИЗ";
+                stateText.className = "text-[10px] px-2 py-0.5 bg-red-950 text-red-400 rounded font-mono border border-red-800";
+            }
+        }
+
+        function triggerHit(damageAmount = 10, customText = null) {
+            currentHp -= damageAmount;
+            if (currentHp < 0) currentHp = 0;
+
+            if (customText) {
+                pushups++;
+                document.getElementById("pushupCount").innerText = pushups;
+            }
+
+            updateBossUI();
+            triggerEffects(customText || `-${damageAmount}`);
+
+            if (currentHp === 0) {
+                setTimeout(() => {
+                    alert("🎉 ПОБЕДА! Вы одолели босса!");
+                    currentHp = maxHp;
+                    updateBossUI();
+                }, 300);
+            }
+        }
+
+        function manualHit() {
+            pushups++;
+            document.getElementById("pushupCount").innerText = pushups;
+            triggerHit(15, "-15 УДАР!");
+        }
+
+        function updateBossUI() {
+            const hpBar = document.getElementById("bossHpBar");
+            const hpText = document.getElementById("bossHpText");
+            const percentage = (currentHp / maxHp) * 100;
+            
+            hpBar.style.width = percentage + "%";
+            hpText.innerText = currentHp;
+        }
+
+        function triggerEffects(text) {
+            const container = document.getElementById("gameContainer");
+            container.classList.add("boss-shake");
+            setTimeout(() => container.classList.remove("boss-shake"), 300);
+
+            const floatCont = document.getElementById("floatingContainer");
+            const dmgEl = document.createElement("div");
+            dmgEl.className = "damage-float text-amber-300 text-xl";
+            dmgEl.innerText = text;
+            dmgEl.style.left = Math.random() * 60 + 20 + "%";
+            dmgEl.style.top = Math.random() * 40 + 30 + "%";
+            floatCont.appendChild(dmgEl);
+
+            setTimeout(() => dmgEl.remove(), 800);
+        }
+
+        window.addEventListener("DOMContentLoaded", () => {
+            initPoseLandmarker();
+        });
+    </script>
+</body>
+</html>
