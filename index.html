@@ -207,7 +207,7 @@
                     } else {
                         clearInterval(prepInterval);
                         isReadyToFight = true;
-                        statusMsg.innerText = "🔥 Отжимайтесь!";
+                        statusMsg.innerText = "🔥 Лягте в упор лёжа!";
                         document.getElementById("poseStateText").innerText = "ВЕРХ";
                     }
                 }, 1000);
@@ -233,34 +233,18 @@
                 const ls = lm[11], rs = lm[12]; // Плечи
                 const le = lm[13], re = lm[14]; // Локти
                 const lw = lm[15], rw = lm[16]; // Запястья
-                const lh = lm[23], rh = lm[24]; // Бёдра
 
-                // Мягкое условие отображения скелета — видны плечи и хотя бы одна рука
                 const isVisible = ls && rs && le && re && lw && rw &&
                                   ls.visibility > 0.15 && rs.visibility > 0.15;
 
                 if (isVisible) {
-                    // Определение положения тела (отсекаем сидение перед камерой)
-                    let isHorizontal = true;
+                    // ЗАЩИТА ОТ МАХОВ РУКАМИ СИДЯ:
+                    // В упоре лёжа (телефон на полу снизу) кисти рук (wrists) находятся ниже плеч по оси Y.
+                    // Когда пользователь сидит перед камерой, кисти выше или на уровне плеч.
+                    const wristsAreOnFloor = (lw.y > ls.y + 0.03) && (rw.y > rs.y + 0.03);
 
-                    if (lh && rh && lh.visibility > 0.2 && rh.visibility > 0.2) {
-                        const shoulderY = (ls.y + rs.y) / 2;
-                        const hipY = (lh.y + rh.y) / 2;
-                        const shoulderX = (ls.x + rs.x) / 2;
-                        const hipX = (lh.x + rh.x) / 2;
-
-                        const dy = Math.abs(hipY - shoulderY);
-                        const dx = Math.abs(hipX - shoulderX);
-                        const bodyAngle = Math.atan2(dy, dx) * (180 / Math.PI);
-
-                        // Если тело расположено вертикально (больше 50 градусов) -> блокируем
-                        if (bodyAngle > 50) {
-                            isHorizontal = false;
-                        }
-                    }
-
-                    if (!isHorizontal) {
-                        document.getElementById("statusMsg").innerText = "⚠️ ПРИНИМИТЕ УПОР ЛЁЖА!";
+                    if (!wristsAreOnFloor) {
+                        document.getElementById("statusMsg").innerText = "⚠️ РУКИ ДОЛЖНЫ БЫТЬ НА ПОЛУ!";
                         document.getElementById("poseStateText").innerText = "НЕ ПЛАНКА";
                         pushupState = 0;
                         drawReferenceSkeleton(lm);
@@ -270,7 +254,7 @@
 
                     document.getElementById("statusMsg").innerText = "🔥 Бой идёт! Отжимайтесь!";
 
-                    // Отрисовка точной красивой сетки (как на видео!)
+                    // Отрисовка скелета
                     drawReferenceSkeleton(lm);
 
                     const leftAngle = calculateAngle(ls, le, lw);
@@ -296,7 +280,6 @@
             return angle;
         }
 
-        // Полная отрисовка скелета с соединительными узлами (как на референсном видео)
         function drawReferenceSkeleton(lm) {
             const color = pushupState === 1 ? "#ef4444" : "#a855f7";
 
@@ -307,7 +290,6 @@
                 [lm[11], lm[23]], [lm[12], lm[24]], [lm[23], lm[24]] // Корпус и бёдра
             ];
 
-            // Если ноги попали в кадр, дорисовываем их
             if (lm[25] && lm[26]) {
                 connections.push([lm[23], lm[25]], [lm[24], lm[26]]);
             }
@@ -324,7 +306,6 @@
                 }
             });
 
-            // Точки-суставы (жёлтые кружочки)
             const joints = [11, 12, 13, 14, 15, 16, 23, 24];
             if (lm[25]) joints.push(25, 26);
 
