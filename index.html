@@ -207,8 +207,8 @@
                     } else {
                         clearInterval(prepInterval);
                         isReadyToFight = true;
-                        statusMsg.innerText = "🔥 Примите упор лёжа!";
-                        document.getElementById("poseStateText").innerText = "ВЕРХ";
+                        statusMsg.innerText = "🔥 Лягте в упор лёжа (покажите ноги)!";
+                        document.getElementById("poseStateText").innerText = "ПОИСК";
                     }
                 }, 1000);
 
@@ -236,34 +236,23 @@
                 const rightElbow = landmarks[14];
                 const leftWrist = landmarks[15];
                 const rightWrist = landmarks[16];
+                const leftHip = landmarks[23];
+                const rightHip = landmarks[24];
+                const leftKnee = landmarks[25];
+                const rightKnee = landmarks[26];
 
-                const isVisible = leftShoulder && rightShoulder && leftElbow && rightElbow && leftWrist && rightWrist &&
-                                  leftShoulder.visibility > 0.3 && rightShoulder.visibility > 0.3;
+                // ГЛАВНОЕ ПРАВИЛО: Требуем видимость не только рук, но и ОБЯЗАТЕЛЬНО БЁДЕР И НОГ!
+                const isUpperVisible = leftShoulder && rightShoulder && leftElbow && rightElbow && leftWrist && rightWrist &&
+                                      leftShoulder.visibility > 0.3 && rightShoulder.visibility > 0.3;
+                
+                const isLegsVisible = leftHip && rightHip && leftKnee && rightKnee &&
+                                      leftHip.visibility > 0.25 && rightHip.visibility > 0.25;
 
-                if (isVisible) {
-                    // АНТИ-ЧИТ ПО ПОЛОЖЕНИЮ ПЛЕЧ: 
-                    // Когда человек сидит перед камерой снизу, плечи располагаются слишком высоко и вертикально (мал Y или сильный перепад).
-                    // В упоре лёжа плечи шире и находятся ближе к центру/низу кадра. Проверим расстояние между плечами:
-                    const shoulderWidth = Math.abs(leftShoulder.x - rightShoulder.x);
-                    
-                    // Если плечи слишком близко друг к другу или человек сидит (высокая вертикальная позиция центров плеч)
-                    const shoulderCenterY = (leftShoulder.y + rightShoulder.y) / 2;
-                    
-                    // Если плечи выше определенного уровня экрана (например, < 0.35 от верха при взгляде снизу) — значит человек сидит/стоит
-                    const isSitting = shoulderCenterY < 0.35 && shoulderWidth < 0.35;
-
-                    if (isSitting) {
-                        document.getElementById("statusMsg").innerText = "⚠️ СЯДЬТЕ / ЛЯГТЕ В УПОР ЛЁЖА!";
-                        document.getElementById("poseStateText").innerText = "СИДИТ/СТОИТ";
-                        pushupState = 0;
-                        canvasCtx.restore();
-                        return;
-                    }
-
+                if (isUpperVisible && isLegsVisible) {
                     document.getElementById("statusMsg").innerText = "🔥 Бой идёт! Отжимайтесь!";
-                    
-                    // Рисуем стильный каркас верхнего тела (плечи, локти, запястья)
-                    drawSkeletonMesh(leftShoulder, rightShoulder, leftElbow, rightElbow, leftWrist, rightWrist);
+
+                    // Рисуем полный каркас тела (плечи, руки, торс, бёдра, ноги)
+                    drawFullBodySkeleton(landmarks);
 
                     const leftAngle = calculateAngle(leftShoulder, leftElbow, leftWrist);
                     const rightAngle = calculateAngle(rightShoulder, rightElbow, rightWrist);
@@ -271,8 +260,9 @@
 
                     processPushupState(avgAngle);
                 } else {
-                    document.getElementById("statusMsg").innerText = "⚠️ Отойдите назад, чтобы руки были в кадре";
-                    document.getElementById("poseStateText").innerText = "В КАДРЕ?";
+                    document.getElementById("statusMsg").innerText = "⚠️ ПОКАЖИТЕ НОГИ И ТЕЛО В КАДРЕ!";
+                    document.getElementById("poseStateText").innerText = "НЕТ НОГ";
+                    pushupState = 0;
                 }
             } else if (isReadyToFight) {
                 document.getElementById("poseStateText").innerText = "НЕТ ТЕЛА";
@@ -288,21 +278,27 @@
             return angle;
         }
 
-        // Отрисовка скелетной сетки (линии плеч и рук + желтые узлы суставов)
-        function drawSkeletonMesh(ls, rs, le, re, lw, rw) {
-            const color = pushupState === 1 ? "#ef4444" : "#a855f7"; // Фиолетово-красная сетка
+        // Отрисовка полноценного скелета тела (как в референсе)
+        function drawFullBodySkeleton(lm) {
+            const color = pushupState === 1 ? "#ef4444" : "#a855f7"; // Красный внизу, фиолетовый вверху
 
             const connections = [
-                [ls, rs], // Линия плеч
-                [ls, le], [le, lw], // Левая рука
-                [rs, re], [re, rw]  // Правая рука
+                // Руки и плечи
+                [lm[11], lm[12]], // Плечи
+                [lm[11], lm[13]], [lm[13], lm[15]], // Левая рука
+                [lm[12], lm[14]], [lm[14], lm[16]], // Правая рука
+                // Торс
+                [lm[11], lm[23]], [lm[12], lm[24]], [lm[23], lm[24]],
+                // Ноги
+                [lm[23], lm[25]], [lm[25], lm[27]], // Левая нога
+                [lm[24], lm[26]], [lm[26], lm[28]]  // Правая нога
             ];
 
             canvasCtx.lineWidth = 4;
             canvasCtx.strokeStyle = color;
 
             connections.forEach(([p1, p2]) => {
-                if (p1 && p2) {
+                if (p1 && p2 && p1.visibility > 0.2 && p2.visibility > 0.2) {
                     canvasCtx.beginPath();
                     canvasCtx.moveTo(p1.x * canvasElement.width, p1.y * canvasElement.height);
                     canvasCtx.lineTo(p2.x * canvasElement.width, p2.y * canvasElement.height);
@@ -310,12 +306,13 @@
                 }
             });
 
-            // Узловые точки суставов
-            [ls, rs, le, re, lw, rw].forEach(p => {
-                if (p) {
+            // Узлы суставов (желтые точки)
+            [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28].forEach(idx => {
+                let p = lm[idx];
+                if (p && p.visibility > 0.2) {
                     canvasCtx.beginPath();
-                    canvasCtx.arc(p.x * canvasElement.width, p.y * canvasElement.height, 6, 0, 2 * Math.PI);
-                    canvasCtx.fillStyle = "#eab308"; // Желтые суставы
+                    canvasCtx.arc(p.x * canvasElement.width, p.y * canvasElement.height, 5, 0, 2 * Math.PI);
+                    canvasCtx.fillStyle = "#eab308";
                     canvasCtx.fill();
                 }
             });
