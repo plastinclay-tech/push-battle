@@ -147,8 +147,8 @@
             pose.setOptions({
                 modelComplexity: 1,
                 smoothLandmarks: true,
-                minDetectionConfidence: 0.4,
-                minTrackingConfidence: 0.4
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
             });
 
             pose.onResults(onPoseResults);
@@ -207,8 +207,8 @@
                     } else {
                         clearInterval(prepInterval);
                         isReadyToFight = true;
-                        statusMsg.innerText = "🔥 Бой идёт! Отжимайтесь!";
-                        document.getElementById("poseStateText").innerText = "ВЕРХ";
+                        statusMsg.innerText = "🔥 Лягте в упор лёжа!";
+                        document.getElementById("poseStateText").innerText = "ПОИСК";
                     }
                 }, 1000);
 
@@ -232,18 +232,37 @@
                 
                 const leftShoulder = landmarks[11];
                 const rightShoulder = landmarks[12];
+                const leftHip = landmarks[23];
+                const rightHip = landmarks[24];
                 const leftElbow = landmarks[13];
                 const rightElbow = landmarks[14];
                 const leftWrist = landmarks[15];
                 const rightWrist = landmarks[16];
 
-                // Мягкий и стабильный допуск видимости точек
                 const isVisible = leftShoulder && rightShoulder && leftElbow && rightElbow && leftWrist && rightWrist &&
-                                  leftShoulder.visibility > 0.3 && rightShoulder.visibility > 0.3;
+                                  leftShoulder.visibility > 0.4 && rightShoulder.visibility > 0.4;
 
                 if (isVisible) {
-                    document.getElementById("statusMsg").innerText = "🔥 Бой идёт! Отжимайтесь!";
+                    // АНТИ-ЧИТ: Проверка положения тела (сидит или в упоре лёжа)
+                    const shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
+                    const hipMidY = (leftHip && rightHip && leftHip.visibility > 0.3 && rightHip.visibility > 0.3) 
+                                    ? (leftHip.y + rightHip.y) / 2 
+                                    : shoulderMidY + 0.3; // фоллбэк
+
+                    const verticalSpan = Math.abs(hipMidY - shoulderMidY);
                     
+                    // Если вертикальный разрыв между плечами и тазом большой (> 0.23), значит человек сидит или стоит вертикально
+                    const isSittingOrStanding = verticalSpan > 0.23;
+
+                    if (isSittingOrStanding) {
+                        document.getElementById("statusMsg").innerText = "⚠️ ЛЯГТЕ НА ПОЛ (упор лёжа)!";
+                        document.getElementById("poseStateText").innerText = "СИДИТ/СТОИТ";
+                        pushupState = 0;
+                        canvasCtx.restore();
+                        return;
+                    }
+
+                    document.getElementById("statusMsg").innerText = "🔥 Бой идёт! Отжимайтесь!";
                     const leftAngle = calculateAngle(leftShoulder, leftElbow, leftWrist);
                     const rightAngle = calculateAngle(rightShoulder, rightElbow, rightWrist);
                     const avgAngle = (leftAngle + rightAngle) / 2;
@@ -255,7 +274,7 @@
 
                     processPushupState(avgAngle);
                 } else {
-                    document.getElementById("statusMsg").innerText = "⚠️ Отойдите назад, чтобы руки были в кадре";
+                    document.getElementById("statusMsg").innerText = "⚠️ Отойдите назад, чтобы тело было в кадре";
                     document.getElementById("poseStateText").innerText = "В КАДРЕ?";
                 }
             } else if (isReadyToFight) {
@@ -285,7 +304,7 @@
         function processPushupState(angle) {
             const now = Date.now();
             const stateText = document.getElementById("poseStateText");
-            const cooldown = 450; // Оптимизированный интервал между повторениями
+            const cooldown = 450;
 
             if (angle > 140) {
                 if (pushupState === 1 && (now - lastStateChangeTime > cooldown)) {
