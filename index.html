@@ -70,7 +70,7 @@
             <div id="bossEmoji" class="w-24 h-24 bg-red-950/40 rounded-full flex items-center justify-center border-2 border-red-600/50 mb-3 shadow-[0_0_20px_rgba(239,68,68,0.2)]">
                 <span class="text-5xl">👹</span>
             </div>
-            <p id="statusMsg" class="text-xs text-slate-400 font-medium max-w-[240px]">Нажмите «Камера» для старта</p>
+            <p id="statusMsg" class="text-xs text-slate-400 font-medium max-w-[240px]">Камера запускается...</p>
         </div>
 
         <!-- Видеопоток с камеры -->
@@ -100,8 +100,8 @@
 
         <!-- Кнопки управления -->
         <div class="grid grid-cols-2 gap-2">
-            <button id="camBtn" onclick="toggleCamera()" class="bg-gradient-to-r from-blue-600 to-indigo-600 active:scale-95 text-white font-bold py-2.5 px-3 rounded-lg shadow-md transition-all text-xs flex items-center justify-center gap-1.5">
-                <span>📷</span> Камера
+            <button id="calibrationBtn" onclick="startCalibration()" class="bg-gradient-to-r from-amber-600 to-yellow-600 active:scale-95 text-white font-bold py-2.5 px-3 rounded-lg shadow-md transition-all text-xs flex items-center justify-center gap-1.5">
+                <span>🎯</span> Калибровка
             </button>
             <button onclick="manualHit()" class="bg-gradient-to-r from-red-600 to-rose-600 active:scale-95 text-white font-bold py-2.5 px-3 rounded-lg shadow-md transition-all text-xs flex items-center justify-center gap-1.5">
                 <span>💥</span> Тест урон
@@ -121,6 +121,14 @@
         let webcamRunning = false;
         let isReadyToFight = false;
         
+        // Переменные калибровки
+        let isCalibrating = false;
+        let calibMinAngle = 180;
+        let calibMaxAngle = 0;
+        let userBottomThreshold = 98;
+        let userTopThreshold = 120;
+        let calibStage = 0; // 0 - верх, 1 - вниз, 2 - возврат вверх
+
         let videoElement = document.getElementById("webcam");
         let canvasElement = document.getElementById("outputCanvas");
         let canvasCtx = canvasElement.getContext("2d");
@@ -128,10 +136,6 @@
         let pushupState = 0; // 0 = ВЕРХ, 1 = ВНИЗ
         let lastStateChangeTime = 0;
         let smoothedAngle = 180;
-        
-        // Переменные для защиты от тряски/сдвига телефона
-        let prevShoulderX = null;
-        let prevShoulderY = null;
 
         const bosses = [
             { name: "Сквернословный Орк", emoji: "👹", hp: 100 },
@@ -152,33 +156,15 @@
             pose.setOptions({
                 modelComplexity: 1,
                 smoothLandmarks: true,
-                minDetectionConfidence: 0.4,
-                minTrackingConfidence: 0.4
+                minDetectionConfidence: 0.35,
+                minTrackingConfidence: 0.35
             });
 
             pose.onResults(onPoseResults);
-            document.getElementById("statusMsg").innerText = "ИИ готов! Нажмите «Камера»";
         }
 
-        async function toggleCamera() {
-            const btn = document.getElementById("camBtn");
-            const bossAvatar = document.getElementById("bossAvatar");
-            const statusMsg = document.getElementById("statusMsg");
-
-            if (webcamRunning) {
-                webcamRunning = false;
-                isReadyToFight = false;
-                if (camera) { try { await camera.stop(); } catch(e){} }
-                videoElement.classList.add("opacity-0");
-                bossAvatar.classList.remove("opacity-0");
-                statusMsg.innerText = "Камера выключена";
-                btn.innerHTML = "<span>📷</span> Камера";
-                document.getElementById("poseStateText").innerText = "ОТКЛ";
-                prevShoulderX = null;
-                prevShoulderY = null;
-                return;
-            }
-
+        // Автоматический запуск камеры при старте страницы
+        async function autoStartCamera() {
             try {
                 if (!pose) initPose();
 
@@ -194,38 +180,27 @@
 
                 await camera.start();
                 webcamRunning = true;
-                isReadyToFight = false;
                 
                 videoElement.classList.remove("opacity-0");
-                bossAvatar.classList.add("opacity-0");
-                btn.innerHTML = "<span>⏹️</span> Стоп";
-
-                let countdown = 3;
-                document.getElementById("poseStateText").innerText = "ПАУЗА";
-                
-                const prepInterval = setInterval(() => {
-                    if (!webcamRunning) {
-                        clearInterval(prepInterval);
-                        return;
-                    }
-                    if (countdown > 0) {
-                        statusMsg.innerText = `📱 Поставьте телефон! Старт через ${countdown}...`;
-                        countdown--;
-                    } else {
-                        clearInterval(prepInterval);
-                        isReadyToFight = true;
-                        statusMsg.innerText = "🔥 Бой идёт! Отжимайтесь!";
-                        document.getElementById("poseStateText").innerText = "ВЕРХ";
-                        smoothedAngle = 180;
-                        prevShoulderX = null;
-                        prevShoulderY = null;
-                    }
-                }, 1000);
+                document.getElementById("bossAvatar").classList.add("opacity-0");
+                document.getElementById("statusMsg").innerText = "Нажмите «Калибровка» для старта!";
+                document.getElementById("poseStateText").innerText = "ГОТОВ";
 
             } catch (err) {
-                console.error("Ошибка камеры:", err);
-                alert("Не удалось включить камеру. Разрешите доступ в браузере.");
+                console.error("Ошибка доступа к камере:", err);
+                document.getElementById("statusMsg").innerText = "Ошибка камери. Разрешите доступ.";
             }
+        }
+
+        function startCalibration() {
+            if (!webcamRunning) return;
+            isCalibrating = true;
+            isReadyToFight = false;
+            calibMinAngle = 180;
+            calibMaxAngle = 0;
+            calibStage = 0;
+            document.getElementById("statusMsg").innerText = "🎯 Сделайте 1 полное отжимание!";
+            document.getElementById("poseStateText").innerText = "КАЛИБРОВКА";
         }
 
         function onPoseResults(results) {
@@ -237,7 +212,7 @@
             canvasCtx.save();
             canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
-            if (results.poseLandmarks && isReadyToFight) {
+            if (results.poseLandmarks) {
                 const lm = results.poseLandmarks;
                 
                 const ls = lm[11], rs = lm[12]; // Плечи
@@ -248,48 +223,62 @@
                                   ls.visibility > 0.2 && rs.visibility > 0.2;
 
                 if (isVisible) {
-                    // АИ-ЗАЩИТА ОТ ТРЯСКИ И СДВИГА ТЕЛЕФОНА:
-                    // Считаем центр плеч в пикселях холста
-                    const curShoulderX = (ls.x + rs.x) / 2 * canvasElement.width;
-                    const curShoulderY = (ls.y + rs.y) / 2 * canvasElement.height;
-
-                    if (prevShoulderX !== null && prevShoulderY !== null) {
-                        const shift = Math.hypot(curShoulderX - prevShoulderX, curShoulderY - prevShoulderY);
-                        // Если плечи резко сместились больше чем на 40 пикселей за 1 кадр — значит, дергают/трясут телефон!
-                        if (shift > 40) {
-                            prevShoulderX = curShoulderX;
-                            prevShoulderY = curShoulderY;
-                            canvasCtx.restore();
-                            return; // Игнорируем этот кадр полностью, защищая от фальшивых срабатываний
-                        }
-                    }
-                    prevShoulderX = curShoulderX;
-                    prevShoulderY = curShoulderY;
-
-                    document.getElementById("statusMsg").innerText = "🔥 Отжимайтесь!";
-
                     drawReferenceSkeleton(lm);
 
                     const leftAngle = calculateAngle(ls, le, lw);
                     const rightAngle = calculateAngle(rs, re, rw);
                     const rawAngle = (leftAngle + rightAngle) / 2;
 
-                    // Плавное сглаживание углов
+                    // Защита от резких скачков (тряски телефона)
+                    if (Math.abs(rawAngle - smoothedAngle) > 55 && smoothedAngle !== 180) {
+                        canvasCtx.restore();
+                        return;
+                    }
                     smoothedAngle = smoothedAngle === 180 ? rawAngle : (smoothedAngle * 0.4 + rawAngle * 0.6);
 
-                    processPushupState(smoothedAngle);
+                    // Режим калибровки
+                    if (isCalibrating) {
+                        processCalibration(smoothedAngle);
+                        canvasCtx.restore();
+                        return;
+                    }
+
+                    // Боевой режим (если откалибровано)
+                    if (isReadyToFight) {
+                        document.getElementById("statusMsg").innerText = "🔥 Бой идёт! Отжимайтесь!";
+                        processPushupState(smoothedAngle);
+                    }
                 } else {
-                    document.getElementById("statusMsg").innerText = "⚠️ Держите руки и плечи в кадре";
-                    document.getElementById("poseStateText").innerText = "ПОИСК";
-                    prevShoulderX = null;
-                    prevShoulderY = null;
+                    if (isReadyToFight) {
+                        document.getElementById("statusMsg").innerText = "⚠️ Держите руки и плечи в кадре";
+                        document.getElementById("poseStateText").innerText = "ПОИСК";
+                    }
                 }
-            } else if (isReadyToFight) {
-                document.getElementById("poseStateText").innerText = "НЕТ ТЕЛА";
-                prevShoulderX = null;
-                prevShoulderY = null;
             }
             canvasCtx.restore();
+        }
+
+        function processCalibration(angle) {
+            const statusMsg = document.getElementById("statusMsg");
+            
+            // Фиксируем минимальный и максимальный углы во время калибровочного движения
+            if (angle < calibMinAngle) calibMinAngle = angle;
+            if (angle > calibMaxAngle) calibMaxAngle = angle;
+
+            if (calibStage === 0 && angle < 110) {
+                calibStage = 1; // Опустился вниз
+                statusMsg.innerText = "⬇️ Отлично! Теперь поднимайтесь наверх...";
+            } else if (calibStage === 1 && angle > 120) {
+                // Калибровка завершена успешно! Вычисляем индивидуальные пороги
+                userBottomThreshold = Math.min(Math.max(calibMinAngle + 8, 85), 110);
+                userTopThreshold = Math.max(Math.min(calibMaxAngle - 8, 135), 115);
+                
+                isCalibrating = false;
+                isReadyToFight = true;
+                statusMsg.innerText = "🎉 Калибровка успешна! БИТВА НАЧАЛАСЬ!";
+                document.getElementById("poseStateText").innerText = "ВЕРХ";
+                pushupState = 0;
+            }
         }
 
         function calculateAngle(a, b, c) {
@@ -301,7 +290,7 @@
         }
 
         function drawReferenceSkeleton(lm) {
-            const color = pushupState === 1 ? "#ef4444" : "#a855f7";
+            const color = isCalibrating ? "#eab308" : (pushupState === 1 ? "#ef4444" : "#a855f7");
 
             const connections = [
                 [lm[11], lm[12]], // Плечевой пояс
@@ -343,9 +332,10 @@
         function processPushupState(angle) {
             const now = Date.now();
             const stateText = document.getElementById("poseStateText");
-            const cooldown = 350;
+            const cooldown = 300;
 
-            if (angle > 120) {
+            // Используем индивидуально откалиброванные пороги пользователя
+            if (angle > userTopThreshold) {
                 if (pushupState === 1 && (now - lastStateChangeTime > cooldown)) {
                     pushupState = 0;
                     lastStateChangeTime = now;
@@ -357,7 +347,7 @@
                 pushupState = 0;
                 stateText.innerText = "ВЕРХ";
                 stateText.className = "text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded font-mono border border-emerald-800";
-            } else if (angle < 98) {
+            } else if (angle < userBottomThreshold) {
                 pushupState = 1;
                 stateText.innerText = "ВНИЗ";
                 stateText.className = "text-[10px] px-2 py-0.5 bg-red-950 text-red-400 rounded font-mono border border-red-800";
@@ -391,7 +381,7 @@
                     document.getElementById("bossMaxHpText").innerText = "/ " + maxHp + " HP";
                     
                     updateBossUI();
-                    isReadyToFight = webcamRunning;
+                    isReadyToFight = true;
                     document.getElementById("statusMsg").innerText = "🔥 Бой продолжается!";
                 }, 1500);
             }
@@ -428,8 +418,9 @@
             setTimeout(() => dmgEl.remove(), 800);
         }
 
+        // Автозапуск камеры сразу при загрузке страницы
         window.addEventListener("DOMContentLoaded", () => {
-            initPose();
+            autoStartCamera();
         });
     </script>
 </body>
