@@ -207,7 +207,7 @@
                     } else {
                         clearInterval(prepInterval);
                         isReadyToFight = true;
-                        statusMsg.innerText = "🔥 Бой идёт! Отжимайтесь!";
+                        statusMsg.innerText = "🔥 Примите упор лёжа!";
                         document.getElementById("poseStateText").innerText = "ВЕРХ";
                     }
                 }, 1000);
@@ -243,7 +243,7 @@
                                   leftShoulder.visibility > 0.3 && rightShoulder.visibility > 0.3;
 
                 if (isVisible) {
-                    // Мягкий анти-чит: проверяем вертикальный разрыв с большим запасом, чтобы планка не блокировалась
+                    // Проверка на вертикальное положение (если пользователь сидит)
                     let shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
                     let hipMidY = (leftHip && rightHip && leftHip.visibility > 0.2 && rightHip.visibility > 0.2) 
                                   ? (leftHip.y + rightHip.y) / 2 
@@ -251,9 +251,8 @@
 
                     let verticalSpan = Math.abs(hipMidY - shoulderMidY);
                     
-                    // Блокируем только если человек явно сидит вертикально (разрыв > 0.38)
-                    if (verticalSpan > 0.38) {
-                        document.getElementById("statusMsg").innerText = "⚠️ ПРИМИТЕ УПОР ЛЁЖА!";
+                    if (verticalSpan > 0.36) {
+                        document.getElementById("statusMsg").innerText = "⚠️ ЛЯГТЕ В УПОР ЛЁЖА!";
                         document.getElementById("poseStateText").innerText = "СИДИТ/СТОИТ";
                         pushupState = 0;
                         canvasCtx.restore();
@@ -261,18 +260,17 @@
                     }
 
                     document.getElementById("statusMsg").innerText = "🔥 Бой идёт! Отжимайтесь!";
+                    
+                    // Рисуем полную сетку каркаса (как в референсе)
+                    drawFullBodyMesh(leftShoulder, rightShoulder, leftElbow, rightElbow, leftWrist, rightWrist, leftHip, rightHip);
+
                     const leftAngle = calculateAngle(leftShoulder, leftElbow, leftWrist);
                     const rightAngle = calculateAngle(rightShoulder, rightElbow, rightWrist);
                     const avgAngle = (leftAngle + rightAngle) / 2;
 
-                    drawBoneAndJoint(leftShoulder, leftElbow);
-                    drawBoneAndJoint(leftElbow, leftWrist);
-                    drawBoneAndJoint(rightShoulder, rightElbow);
-                    drawBoneAndJoint(rightElbow, rightWrist);
-
                     processPushupState(avgAngle);
                 } else {
-                    document.getElementById("statusMsg").innerText = "⚠️ Отойдите назад, чтобы руки были в кадре";
+                    document.getElementById("statusMsg").innerText = "⚠️ Отойдите назад, чтобы тело было в кадре";
                     document.getElementById("poseStateText").innerText = "В КАДРЕ?";
                 }
             } else if (isReadyToFight) {
@@ -289,25 +287,44 @@
             return angle;
         }
 
-        function drawBoneAndJoint(p1, p2) {
-            if (!p1 || !p2) return;
-            const x1 = p1.x * canvasElement.width;
-            const y1 = p1.y * canvasElement.height;
-            const x2 = p2.x * canvasElement.width;
-            const y2 = p2.y * canvasElement.height;
+        // Отрисовка полной сетки каркаса тела и суставов
+        function drawFullBodyMesh(ls, rs, le, re, lw, rw, lh, rh) {
+            const color = pushupState === 1 ? "#ef4444" : "#a855f7"; // Фиолетово-желтая сетка под стиль референса
 
-            canvasCtx.beginPath();
-            canvasCtx.moveTo(x1, y1);
-            canvasCtx.lineTo(x2, y2);
-            canvasCtx.strokeStyle = pushupState === 1 ? "#ef4444" : "#22c55e";
-            canvasCtx.lineWidth = 5;
-            canvasCtx.stroke();
+            // Соединения линий суставов
+            const connections = [
+                [ls, rs], // Плечи
+                [ls, le], [le, lw], // Левая рука
+                [rs, re], [re, rw]  // Правая рука
+            ];
 
-            canvasCtx.beginPath();
-            canvasCtx.arc(x1, y1, 6, 0, 2 * Math.PI);
-            canvasCtx.arc(x2, y2, 6, 0, 2 * Math.PI);
-            canvasCtx.fillStyle = "#38bdf8";
-            canvasCtx.fill();
+            if (lh && rh && lh.visibility > 0.2 && rh.visibility > 0.2) {
+                connections.push([lh, rh]); // Бёдра
+                connections.push([ls, lh]); // Торс лево
+                connections.push([rs, rh]); // Торс право
+            }
+
+            canvasCtx.lineWidth = 4;
+            canvasCtx.strokeStyle = color;
+
+            connections.forEach(([p1, p2]) => {
+                if (p1 && p2) {
+                    canvasCtx.beginPath();
+                    canvasCtx.moveTo(p1.x * canvasElement.width, p1.y * canvasElement.height);
+                    canvasCtx.lineTo(p2.x * canvasElement.width, p2.y * canvasElement.height);
+                    canvasCtx.stroke();
+                }
+            });
+
+            // Точки суставов (желтые кругляшки)
+            [ls, rs, le, re, lw, rw, lh, rh].forEach(p => {
+                if (p && p.visibility > 0.2) {
+                    canvasCtx.beginPath();
+                    canvasCtx.arc(p.x * canvasElement.width, p.y * canvasElement.height, 6, 0, 2 * Math.PI);
+                    canvasCtx.fillStyle = "#eab308"; // Желтые суставы
+                    canvasCtx.fill();
+                }
+            });
         }
 
         function processPushupState(angle) {
@@ -315,7 +332,6 @@
             const stateText = document.getElementById("poseStateText");
             const cooldown = 400;
 
-            // Снизили порог верха до 125°, чтобы повторения засчитывались даже при неполном выпрямлении рук
             if (angle > 125) {
                 if (pushupState === 1 && (now - lastStateChangeTime > cooldown)) {
                     pushupState = 0;
